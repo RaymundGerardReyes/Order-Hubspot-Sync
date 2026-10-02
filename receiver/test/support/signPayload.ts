@@ -7,13 +7,23 @@ export interface SignPayloadOptions {
 
 /**
  * Generate HMAC-SHA256 signature for test payloads.
+ * Supports both options object or (payload, secret, includePrefix) positional arguments.
  */
 export function signPayload(
   payload: string | Buffer | object,
-  options: SignPayloadOptions = {}
+  optionsOrSecret: SignPayloadOptions | string = {},
+  includePrefixParam?: boolean
 ): string {
-  const secret = options.secret || process.env.WEBHOOK_SECRET || 'test_webhook_secret_key_123';
-  const includePrefix = options.includePrefix ?? true;
+  let secret: string;
+  let includePrefix: boolean;
+
+  if (typeof optionsOrSecret === 'string') {
+    secret = optionsOrSecret;
+    includePrefix = includePrefixParam ?? true;
+  } else {
+    secret = optionsOrSecret.secret || process.env.WEBHOOK_SECRET || 'test_webhook_secret_key_123';
+    includePrefix = optionsOrSecret.includePrefix ?? true;
+  }
 
   const rawString = typeof payload === 'string'
     ? payload
@@ -24,3 +34,4 @@ export function signPayload(
   const hash = crypto.createHmac('sha256', secret).update(rawString).digest('hex');
   return includePrefix ? `sha256=${hash}` : hash;
 }
+

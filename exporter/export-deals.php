@@ -61,7 +61,7 @@ if (!$accessToken) {
 
 // ─── Configuration ─────────────────────────────────────────────────────────
 
-const HUBSPOT_BASE_URL = 'https://api.hubapi.com';
+$baseUrl = rtrim((string) (getenv('HUBSPOT_BASE_URL') ?: 'https://api.hubapi.com'), '/');
 const REQUEST_PROPERTIES = [
     'hs_object_id',
     'dealname',
@@ -90,9 +90,9 @@ fwrite(STDOUT, "Fetching HubSpot deals created since {$cutoffTimestamp} (last {$
  *
  * @return array<string, mixed>
  */
-function hubspotRequest(string $method, string $path, array $body = [], string $token = ''): array
+function hubspotRequest(string $method, string $path, array $body = [], string $token = '', string $baseUrl = 'https://api.hubapi.com'): array
 {
-    $url = HUBSPOT_BASE_URL . '/' . ltrim($path, '/');
+    $url = $baseUrl . '/' . ltrim($path, '/');
 
     $headers = [
         'Authorization: Bearer ' . $token,
@@ -160,7 +160,7 @@ fputcsv($fp, [
     'deal_stage',
     'created_at',
     'external_order_id',
-]);
+], ',', '"', "\\");
 
 try {
     do {
@@ -181,7 +181,7 @@ try {
             $requestBody['after'] = $after;
         }
 
-        $response = hubspotRequest('POST', 'crm/v3/objects/deals/search', $requestBody, $accessToken);
+        $response = hubspotRequest('POST', 'crm/v3/objects/deals/search', $requestBody, $accessToken, $baseUrl);
 
         $results = $response['results'] ?? [];
 
@@ -196,7 +196,7 @@ try {
                 $props['dealstage']              ?? '',
                 $props['createdate']             ?? '',
                 $props['external_order_id']      ?? '',
-            ]);
+            ], ',', '"', "\\");
             $written++;
         }
 

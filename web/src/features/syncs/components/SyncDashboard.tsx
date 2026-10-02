@@ -5,15 +5,19 @@ import { useRetry } from '../hooks/useRetry';
 import { useSyncs } from '../hooks/useSyncs';
 import { SyncTable } from './SyncTable';
 
-export function SyncDashboard(): React.JSX.Element {
-  const { syncs, isLoading, error, refresh } = useSyncs(5000);
+export interface SyncDashboardProps {
+  pollIntervalMs?: number;
+}
+
+export function SyncDashboard({ pollIntervalMs = 5000 }: SyncDashboardProps = {}): React.JSX.Element {
+  const { syncs, isLoading, error, refresh } = useSyncs(pollIntervalMs);
   const { isRetrying, retryingId, retryError, triggerRetry } = useRetry(refresh);
 
   return (
     <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '24px', fontFamily: 'sans-serif' }}>
       <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
         <div>
-          <h1 style={{ fontSize: '1.5rem', fontWeight: 700, margin: 0 }}>Order to HubSpot Sync Dashboard</h1>
+          <h1 style={{ fontSize: '1.5rem', fontWeight: 700, margin: 0 }}>Order Sync Dashboard</h1>
           <p style={{ margin: '4px 0 0 0', color: '#6B7280', fontSize: '0.875rem' }}>
             Live status of incoming orders and HubSpot deal synchronization
           </p>

@@ -156,7 +156,8 @@ describe('Webhook Route & API Integration Tests', () => {
     const app = buildTestApp();
 
     // Create an order in failed status
-    orderRepo.insertIfNew(validOrder as any);
+    const orderPayload = { ...validOrder, order_id: validOrder.orderId };
+    orderRepo.insertIfNew(orderPayload as any);
     const attempt = attemptRepo.insert(validOrder.orderId, 'webhook');
     attemptRepo.markFailed(attempt.id, '500', 'HubSpot test error');
     orderRepo.updateStatus(validOrder.orderId, 'failed');

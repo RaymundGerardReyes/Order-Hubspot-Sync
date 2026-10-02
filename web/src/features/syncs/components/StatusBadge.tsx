@@ -10,27 +10,27 @@ export function StatusBadge({ status }: StatusBadgeProps): React.JSX.Element {
     pending: {
       bg: '#FEF3C7',
       text: '#92400E',
-      label: 'Pending',
+      label: 'PENDING',
     },
     processing: {
       bg: '#DBEAFE',
       text: '#1E40AF',
-      label: 'Processing',
+      label: 'PROCESSING',
     },
     success: {
       bg: '#D1FAE5',
       text: '#065F46',
-      label: 'Success',
+      label: 'SUCCESS',
     },
     succeeded: {
       bg: '#D1FAE5',
       text: '#065F46',
-      label: 'Success',
+      label: 'SUCCESS',
     },
     failed: {
       bg: '#FEE2E2',
       text: '#991B1B',
-      label: 'Failed',
+      label: 'FAILED',
     },
   };
 

@@ -20,8 +20,9 @@ describe('REG-001: Raw Body Signature Preservation', () => {
   });
 
   it('successfully verifies signatures generated over non-standard whitespace payloads', async () => {
+    const uniqueOrderId = `ORD-REG-RAW-${Date.now()}`;
     // Intentionally construct JSON with irregular whitespace and newlines
-    const rawWhitespaceJson = `{\n  "event": "order.created",\n  "order_id":   "ORD-REG-001",\n  "created_at": "2026-10-02T12:00:00Z",\n  "customer": {\n    "name": "Jane Doe",\n    "email": "jane@example.com"\n  },\n  "items": [\n    {"sku": "SKU-REG", "name": "Item 1", "quantity": 1, "price": 49.99}\n  ],\n  "total_amount": 49.99,\n  "currency": "USD"\n}`;
+    const rawWhitespaceJson = `{\n  "event": "order.created",\n  "order_id":   "${uniqueOrderId}",\n  "created_at": "2026-10-02T12:00:00Z",\n  "customer": {\n    "name": "Jane Doe",\n    "email": "jane@example.com"\n  },\n  "items": [\n    {"sku": "SKU-REG", "name": "Item 1", "quantity": 1, "price": 49.99}\n  ],\n  "total_amount": 49.99,\n  "currency": "USD"\n}`;
 
     const signature = signPayload(rawWhitespaceJson, webhookSecret, true);
 
@@ -39,3 +40,4 @@ describe('REG-001: Raw Body Signature Preservation', () => {
     expect(response.json().status).toBe('accepted');
   });
 });
+

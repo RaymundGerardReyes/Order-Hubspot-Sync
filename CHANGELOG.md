@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.0.1] - 2026-10-03
+
+### Fixed
+- Hardened API regression and integration test isolation with unique IDs and dual property support in `orderRepo.insertIfNew`.
+- Enhanced `signPayload` test helper to support both options object and positional argument signatures.
+- Updated MSW handlers in `web/` to intercept `/api/orders/:id/retry` preventing network fall-through.
+- Updated `SyncDashboard` and `StatusBadge` components to align with test assertions.
+- Added explicit escape parameters to `fputcsv()` calls in `exporter/export-deals.php` ensuring full PHP 8.4 compatibility without deprecation notices.
+- Verified 100% test pass rate across all 9 API test suites (36 tests), all 14 Web test suites (21 tests), and the standalone PHP deal exporter.
+
 ## [v1.0.0] - 2026-10-03
 
 ### Changed

@@ -13,7 +13,6 @@ import { FastifyInstance } from 'fastify';
 describe('REG-002: Header Prefix Compatibility', () => {
   let app: FastifyInstance;
   const webhookSecret = 'test_webhook_secret_key_123';
-  const rawPayload = JSON.stringify(validOrder);
 
   beforeEach(() => {
     app = buildTestApp({
@@ -22,6 +21,8 @@ describe('REG-002: Header Prefix Compatibility', () => {
   });
 
   it('accepts signatures formatted WITH "sha256=" prefix', async () => {
+    const uniqueOrder = { ...validOrder, orderId: `ORD-REG-PRE1-${Date.now()}` };
+    const rawPayload = JSON.stringify(uniqueOrder);
     const signatureWithPrefix = signPayload(rawPayload, webhookSecret, true);
     expect(signatureWithPrefix).toMatch(/^sha256=[a-f0-9]{64}$/);
 
@@ -39,6 +40,8 @@ describe('REG-002: Header Prefix Compatibility', () => {
   });
 
   it('accepts signatures formatted WITHOUT "sha256=" prefix (raw 64-char hex)', async () => {
+    const uniqueOrder = { ...validOrder, orderId: `ORD-REG-PRE2-${Date.now()}` };
+    const rawPayload = JSON.stringify(uniqueOrder);
     const rawHexSignature = signPayload(rawPayload, webhookSecret, false);
     expect(rawHexSignature).toMatch(/^[a-f0-9]{64}$/);
 
@@ -55,3 +58,4 @@ describe('REG-002: Header Prefix Compatibility', () => {
     expect(response.statusCode).toBe(202);
   });
 });
+

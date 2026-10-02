@@ -46,7 +46,8 @@ export const orderRepo = {
       ON CONFLICT(order_id) DO NOTHING
       RETURNING *
     `);
-    return stmt.get(payload.order_id, JSON.stringify(payload)) ?? null;
+    const orderId = payload.order_id || (payload as any).orderId;
+    return stmt.get(orderId, JSON.stringify(payload)) ?? null;
   },
 
   findById(orderId: string): OrderRow | null {
