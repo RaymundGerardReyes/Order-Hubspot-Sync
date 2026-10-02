@@ -125,26 +125,70 @@ export class HubSpotRepository {
     const dealName = this.buildDealName(payload);
     const closeDateUtc = new Date(payload.created_at).toISOString().split('T')[0] + 'T00:00:00.000Z';
 
-    const created = await this.client.request<{ id: string }>(
-      'POST',
-      'crm/v3/objects/deals',
-      {
-        properties: {
-          dealname: dealName,
-          amount: payload.total.toFixed(2),
-          pipeline: this.pipelineId,
-          dealstage: this.dealStageId,
-          closedate: closeDateUtc,
-          [this.orderIdProperty]: payload.order_id,
-        },
-        associations: [{
-          to: { id: contactId },
-          types: [{ associationCategory: 'HUBSPOT_DEFINED', associationTypeId: 3 }],
-        }],
-      }
-    );
+    try {
+      const created = await this.client.request<{ id: string }>(
+        'POST',
+        'crm/v3/objects/deals',
+        {
+          properties: {
+            dealname: dealName,
+            amount: payload.total.toFixed(2),
+            pipeline: this.pipelineId,
+            dealstage: this.dealStageId,
+            closedate: closeDateUtc,
+            [this.orderIdProperty]: payload.order_id,
+          },
+          associations: [{
+            to: { id: contactId },
+            types: [{ associationCategory: 'HUBSPOT_DEFINED', associationTypeId: 3 }],
+          }],
+        }
+      );
 
-    return created.id;
+      return created.id;
+    } catch (err: unknown) {
+      // Dynamic fallback: If pipeline or stage ID is rejected by HubSpot, auto-discover portal's primary pipeline
+      if (err instanceof Error && 'statusCode' in err && (err as { statusCode: number }).statusCode === 400) {
+        const errorMsg = (err as Error).message.toLowerCase();
+        if (errorMsg.includes('pipeline') || errorMsg.includes('stage')) {
+          try {
+            const pipelineData = await this.client.request<{
+              results: Array<{ id: string; stages: Array<{ id: string; label: string }> }>;
+            }>('GET', 'crm/v3/pipelines/deals');
+
+            const primaryPipeline = pipelineData.results?.[0];
+            if (primaryPipeline && primaryPipeline.stages?.length > 0) {
+              const wonStage =
+                primaryPipeline.stages.find((s) => /closed\s*won/i.test(s.label) || s.id === 'closedwon') ||
+                primaryPipeline.stages[primaryPipeline.stages.length - 1];
+
+              const recovered = await this.client.request<{ id: string }>(
+                'POST',
+                'crm/v3/objects/deals',
+                {
+                  properties: {
+                    dealname: dealName,
+                    amount: payload.total.toFixed(2),
+                    pipeline: primaryPipeline.id,
+                    dealstage: wonStage.id,
+                    closedate: closeDateUtc,
+                    [this.orderIdProperty]: payload.order_id,
+                  },
+                  associations: [{
+                    to: { id: contactId },
+                    types: [{ associationCategory: 'HUBSPOT_DEFINED', associationTypeId: 3 }],
+                  }],
+                }
+              );
+              return recovered.id;
+            }
+          } catch {
+            // fallback discovery failed, rethrow original error
+          }
+        }
+      }
+      throw err;
+    }
   }
 
   async associateDealContact(dealId: string, contactId: string): Promise<void> {

@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.0.3] - 2026-10-03
+
+### Added
+- Added dynamic deal pipeline and won-stage auto-discovery fallback in `receiver/src/hubspot/repository.ts` so custom or localized HubSpot pipelines are automatically resolved without requiring manual configuration.
+- Removed duplicate local `receiver/.env` file to ensure the repository root `.env` serves as the single source of truth across all tools.
+
 ## [v1.0.2] - 2026-10-03
 
 ### Fixed
