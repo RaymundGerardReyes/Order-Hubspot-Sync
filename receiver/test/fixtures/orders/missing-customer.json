@@ -1,0 +1,13 @@
+{
+  "orderId": "ORD-10482",
+  "items": [
+    {
+      "sku": "SKU-PRO-01",
+      "name": "Pro Subscription",
+      "quantity": 1,
+      "unitPrice": 99.00
+    }
+  ],
+  "totalAmount": 99.00,
+  "currency": "USD"
+}

@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.9.0] - 2026-10-03
+
+### Added
+- Complete receiver test suite structure complying with `TESTING_MODULES.md` across 4 testing tiers.
+- Receiver Unit tests: `hmac.test.ts`, `schema.test.ts`, `config.test.ts`, `forward.test.ts`.
+- Receiver Integration tests: `webhook-route.test.ts`, `backend-unreachable.test.ts`.
+- Receiver E2E test: `receiver-to-fake-backend.e2e.test.ts` verifying real socket HTTP dispatch to fake Laravel server.
+- Receiver Regression tests: `REG-001-raw-body-signature.test.ts`, `REG-002-header-prefix.test.ts`.
+- Test support helpers and fixtures: `fakeBackend.ts`, `buildTestApp.ts`, `signPayload.ts`, and JSON order fixtures.
+- Receiver test scripts in `package.json` (`test:unit`, `test:integration`, `test:e2e`, `test:regression`, `test`).
+
+### Removed
+- Superseded legacy root receiver tests (`receiver/test/hmac.test.ts`, `receiver/test/schema.test.ts`).
+
 ## [v0.8.2] - 2026-10-03
 
 ### Documentation

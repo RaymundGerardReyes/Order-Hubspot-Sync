@@ -1,0 +1,18 @@
+{
+  "orderId": "ORD-10482",
+  "customer": {
+    "name": "Alex Taylor",
+    "email": "alex.taylor@example.com"
+  },
+  "items": [
+    {
+      "sku": "SKU-PRO-01",
+      "name": "Pro Subscription",
+      "quantity": 1,
+      "unitPrice": 99.00
+    }
+  ],
+  "totalAmount": 99.00,
+  "currency": "USD",
+  "createdAt": "2026-10-03T12:00:00Z"
+}
