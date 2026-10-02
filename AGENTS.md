@@ -23,3 +23,7 @@
   - Any version bump must update `VERSION` at the repository root.
   - Changelog must be updated in `CHANGELOG.md` following [Keep a Changelog](https://keepachangelog.com/).
   - A corresponding annotated git tag `vMAJOR.MINOR.PATCH` must be created and pushed to the upstream GitHub repository.
+
+## 3. Remote Protocol: Mandatory SSH Usage
+- **Requirement**: Always configure and use SSH URLs for git remotes (`git@github.com:RaymundGerardReyes/Order-Hubspot-Sync.git`).
+- **Rationale**: Bypasses Windows Credential Manager HTTPS OAuth token collisions between local accounts (e.g., `RaymundGerardEstaca` vs `RaymundGerardReyes`), utilizing the machine's pre-configured, authenticated SSH key.
