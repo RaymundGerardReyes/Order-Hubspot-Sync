@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.0.2] - 2026-10-03
+
+### Fixed
+- Resolved `Fatal: WEBHOOK_SECRET environment variable is required` startup crash by adding multi-path `.env` resolution (`process.cwd()/.env`, `../.env`, etc.) and auto-bootstrapping from `.env.example`.
+- Fixed `ECONNREFUSED` connection failure when running `scripts/mock-webhook.ts` by adding zero-dependency built-in `.env` parser and friendly server offline diagnostic guidance.
+- Fixed Vitest memory exhaustion (`AlignedAlloc Allocation failed - process out of memory`) on Windows in `web/` by configuring `fileParallelism: false`.
+- Updated documentation and code across README, walkthrough, and PHP exporter to support modern HubSpot **Service Keys** replacing deprecated legacy Private Apps.
+- Tracked `scripts/mock-webhook.ts` in git as required by the Stage 2 take-home brief specification.
+
 ## [v1.0.1] - 2026-10-03
 
 ### Fixed

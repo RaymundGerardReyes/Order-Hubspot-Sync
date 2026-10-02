@@ -1,4 +1,42 @@
-import 'dotenv/config';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import dotenv from 'dotenv';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Candidate paths to search for .env in current cwd and upwards to repo root
+const candidateEnvPaths = [
+  path.resolve(process.cwd(), '.env'),
+  path.resolve(process.cwd(), '../.env'),
+  path.resolve(__dirname, '../.env'),
+  path.resolve(__dirname, '../../.env'),
+];
+
+let envLoaded = false;
+for (const envPath of candidateEnvPaths) {
+  if (fs.existsSync(envPath)) {
+    dotenv.config({ path: envPath });
+    envLoaded = true;
+    break;
+  }
+}
+
+// Auto-bootstrap from .env.example if missing
+if (!envLoaded) {
+  const rootDir = path.resolve(__dirname, '../../');
+  const examplePath = path.resolve(rootDir, '.env.example');
+  const targetPath = path.resolve(rootDir, '.env');
+  if (fs.existsSync(examplePath) && !fs.existsSync(targetPath)) {
+    try {
+      fs.copyFileSync(examplePath, targetPath);
+      dotenv.config({ path: targetPath });
+    } catch {
+      // ignore
+    }
+  }
+}
 
 export interface ApiConfig {
   port: number;

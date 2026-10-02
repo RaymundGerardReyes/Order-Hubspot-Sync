@@ -27,7 +27,7 @@ php export-deals.php --days=14 --output=storage/exports/deals.csv
 
 | Variable | Required | Description |
 |---|---|---|
-| `HUBSPOT_ACCESS_TOKEN` | ✅ Yes | HubSpot private app access token with `crm.objects.deals.read` scope |
+| `HUBSPOT_ACCESS_TOKEN` | ✅ Yes | HubSpot Service Key or private app bearer token with `crm.objects.deals.read` scope |
 
 The script will automatically load `.env` from the project root or its own directory.
 

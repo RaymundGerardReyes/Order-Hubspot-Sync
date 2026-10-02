@@ -13,7 +13,7 @@
  *   php export-deals.php --days=14 --output=storage/exports/deals.csv
  *
  * Environment variables required:
- *   HUBSPOT_ACCESS_TOKEN — HubSpot private app access token
+ *   HUBSPOT_ACCESS_TOKEN — HubSpot Service Key or private app bearer token
  *
  * Dependencies: None. Pure PHP, no Composer packages required.
  */

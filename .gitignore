@@ -5,8 +5,9 @@ vendor/
 backend/vendor/
 */vendor/
 
-# Local scripts & utilities (excluded per user instruction)
-scripts/
+# Local scripts & utilities (mock-webhook required by take-home brief)
+scripts/*
+!scripts/mock-webhook.ts
 
 # Environment files
 .env
@@ -21,6 +22,8 @@ build/
 .next/
 out/
 .turbo/
+next-env.d.ts
+*.tsbuildinfo
 
 # Laravel runtime, cache and storage
 backend/bootstrap/cache/*.php

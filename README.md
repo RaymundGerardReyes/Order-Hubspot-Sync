@@ -1,6 +1,6 @@
 # HubSpot Order Sync: Integration Pipeline
 
-[![Version](https://img.shields.io/badge/version-v1.0.1-blue.svg)](VERSION)
+[![Version](https://img.shields.io/badge/version-v1.0.2-blue.svg)](VERSION)
 [![SemVer](https://img.shields.io/badge/SemVer-2.0.0-green.svg)](https://semver.org)
 [![Node.js](https://img.shields.io/badge/Node.js-20%2B%20%7C%2022-339933.svg?logo=node.js)](receiver/)
 [![Fastify](https://img.shields.io/badge/Fastify-4.x-black.svg?logo=fastify)](receiver/)
@@ -148,14 +148,19 @@ sequenceDiagram
 
 ## HubSpot Setup Guide
 
-### 1. App Scopes
-Create a **Private App** in your HubSpot Developer Test Account (under *Settings → Integrations → Private Apps*) and grant the following scopes:
-- `crm.objects.contacts.read`
-- `crm.objects.contacts.write`
-- `crm.objects.deals.read`
-- `crm.objects.deals.write`
-
-Copy the generated **Access Token** (`pat-na1-...`) into your `.env` file as `HUBSPOT_ACCESS_TOKEN`.
+### 1. API Authentication: Service Keys (or Legacy Private Apps)
+HubSpot has sunset legacy private app creation for new accounts in favor of **Service Keys** for direct API integrations from code:
+- **For New Accounts (Service Keys)**:
+  1. Click **Create a service key** on the migration banner or navigate to *Settings (⚙️) → Integrations → Service Keys* (direct URL: `https://app-na2.hubspot.com/service-keys/<YOUR_ACCOUNT_ID>`).
+  2. Click **Create service key** and enter the name: `Order Sync Pipeline`.
+  3. Grant the required 4 CRM scopes:
+     - `crm.objects.contacts.read`
+     - `crm.objects.contacts.write`
+     - `crm.objects.deals.read`
+     - `crm.objects.deals.write`
+  4. Generate and copy the bearer token into `.env` as `HUBSPOT_ACCESS_TOKEN`.
+- **For Existing/Legacy Portals (Private Apps)**:
+  If your portal still supports legacy private apps, create one under *Settings → Integrations → Private Apps* with the identical 4 scopes above. Both formats use standard HTTP `Authorization: Bearer <token>` authentication.
 
 ### 2. Unique Identifier Property: `external_order_id`
 To ensure deal idempotency on the CRM layer (closing crash windows):
