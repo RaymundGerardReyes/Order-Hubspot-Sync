@@ -1,0 +1,78 @@
+{
+  "name": "Order to HubSpot Sync",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "orders",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "resource": "contact",
+        "operation": "upsert",
+        "email": "={{ $json.body.customer.email }}",
+        "additionalFields": {
+          "firstName": "={{ $json.body.customer.name.split(' ')[0] }}",
+          "lastName": "={{ $json.body.customer.name.split(' ').slice(1).join(' ') }}"
+        }
+      },
+      "id": "hubspot-contact",
+      "name": "HubSpot Upsert Contact",
+      "type": "n8n-nodes-base.hubspot",
+      "typeVersion": 1,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "resource": "deal",
+        "operation": "create",
+        "dealName": "=Order #{{ $json.body.orderId }} - {{ $json.body.customer.name }}",
+        "stage": "closedwon",
+        "pipeline": "default",
+        "additionalFields": {
+          "amount": "={{ $json.body.totalAmount }}"
+        }
+      },
+      "id": "hubspot-deal",
+      "name": "HubSpot Create Deal",
+      "type": "n8n-nodes-base.hubspot",
+      "typeVersion": 1,
+      "position": [680, 300]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "HubSpot Upsert Contact",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HubSpot Upsert Contact": {
+      "main": [
+        [
+          {
+            "node": "HubSpot Create Deal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

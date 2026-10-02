@@ -1,0 +1,72 @@
+version: '3.8'
+
+services:
+  receiver:
+    build:
+      context: ./receiver
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - WEBHOOK_SECRET=${WEBHOOK_SECRET}
+      - INTERNAL_TOKEN=${INTERNAL_TOKEN}
+      - BACKEND_URL=http://backend:8000
+      - RECEIVER_PORT=3000
+    depends_on:
+      - backend
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - APP_NAME=OrderHubspotSync
+      - APP_ENV=production
+      - APP_KEY=${APP_KEY}
+      - APP_DEBUG=false
+      - APP_URL=http://localhost:8000
+      - DB_CONNECTION=sqlite
+      - DB_DATABASE=/var/www/html/database/database.sqlite
+      - QUEUE_CONNECTION=database
+      - INTERNAL_TOKEN=${INTERNAL_TOKEN}
+      - HUBSPOT_ACCESS_TOKEN=${HUBSPOT_ACCESS_TOKEN}
+      - HUBSPOT_PIPELINE_ID=${HUBSPOT_PIPELINE_ID:-default}
+      - HUBSPOT_STAGE_ID=${HUBSPOT_STAGE_ID:-closedwon}
+    volumes:
+      - backend-db:/var/www/html/database
+
+  worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    command: php artisan queue:work --tries=3 --timeout=90
+    environment:
+      - APP_NAME=OrderHubspotSync
+      - APP_ENV=production
+      - APP_KEY=${APP_KEY}
+      - DB_CONNECTION=sqlite
+      - DB_DATABASE=/var/www/html/database/database.sqlite
+      - QUEUE_CONNECTION=database
+      - INTERNAL_TOKEN=${INTERNAL_TOKEN}
+      - HUBSPOT_ACCESS_TOKEN=${HUBSPOT_ACCESS_TOKEN}
+    volumes:
+      - backend-db:/var/www/html/database
+    depends_on:
+      - backend
+
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    ports:
+      - "3001:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000/api
+    depends_on:
+      - backend
+
+volumes:
+  backend-db:
