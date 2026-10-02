@@ -1,18 +1,49 @@
-# Build and Release Folders
-bin-debug/
-bin-release/
-[Oo]bj/
-[Bb]in/
+# Dependencies and package directories
+node_modules/
+*/node_modules/
+vendor/
+backend/vendor/
+*/vendor/
 
-# Other files and folders
-.settings/
+# Local scripts & utilities (excluded per user instruction)
+scripts/
 
-# Executables
-*.swf
-*.air
-*.ipa
-*.apk
+# Environment files
+.env
+.env.backup
+.env.production
+.env.local
+.env.*.local
 
-# Project files, i.e. `.project`, `.actionScriptProperties` and `.flexProperties`
-# should NOT be excluded as they contain compiler settings and other important
-# information for Eclipse / Flash Builder.
+# Build and compilation outputs
+dist/
+build/
+.next/
+out/
+.turbo/
+
+# Laravel runtime, cache and storage
+backend/bootstrap/cache/*.php
+backend/storage/logs/*.log
+backend/storage/framework/cache/data/*
+backend/storage/framework/sessions/*
+backend/storage/framework/views/*
+
+# Logs and SQLite databases
+*.log
+database/*.sqlite
+database/*.sqlite-journal
+backend/database/*.sqlite
+backend/database/*.sqlite-journal
+
+# Testing & coverage
+coverage/
+.phpunit.result.cache
+
+# Operating System & IDE files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.suo
+*.user
