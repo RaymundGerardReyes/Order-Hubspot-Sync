@@ -1,326 +1,322 @@
-# Order to HubSpot Synchronization System
+# HubSpot Order Sync: Integration Pipeline
 
-[![Version](https://img.shields.io/badge/version-v0.8.2-blue.svg)](VERSION)
+[![Version](https://img.shields.io/badge/version-v1.0.0-blue.svg)](VERSION)
 [![SemVer](https://img.shields.io/badge/SemVer-2.0.0-green.svg)](https://semver.org)
-[![PHP](https://img.shields.io/badge/PHP-8.2%2B%20%7C%208.4-777BB4.svg?logo=php)](backend/)
-[![Laravel](https://img.shields.io/badge/Laravel-11%2B-FF2D20.svg?logo=laravel)](backend/)
 [![Node.js](https://img.shields.io/badge/Node.js-20%2B%20%7C%2022-339933.svg?logo=node.js)](receiver/)
 [![Fastify](https://img.shields.io/badge/Fastify-4.x-black.svg?logo=fastify)](receiver/)
+[![SQLite](https://img.shields.io/badge/SQLite-WAL%20Mode-003B57.svg?logo=sqlite)](receiver/)
 [![Next.js](https://img.shields.io/badge/Next.js-15-black.svg?logo=next.js)](web/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6.svg?logo=typescript)](web/)
+[![PHP](https://img.shields.io/badge/PHP-8.2%2B%20%7C%208.4-777BB4.svg?logo=php)](exporter/)
 
-A high-reliability, 3-tier enterprise integration pipeline designed to ingest order webhooks, verify cryptographic HMAC signatures, deduplicate incoming payloads, synchronize contacts and deals into HubSpot CRM with exponential backoff and rate-limit recovery, and provide real-time visibility through a Next.js operational dashboard.
+A robust, production-grade HubSpot e-commerce synchronization system implementing **at-least-once webhook delivery with an exactly-once business effect**. The architecture implements all core integration requirements (Req 22–27) within a single Node.js/TypeScript service, an operational Next.js dashboard, and a standalone PHP script for 7-day HubSpot deal CSV export (Language B, Req 28).
 
 ---
 
 ## Table of Contents
-- [Architecture Overview](#architecture-overview)
-- [System Components & Language Split](#system-components--language-split)
-- [Engineering Guidelines & Invariants](#engineering-guidelines--invariants)
-  - [1. Strict PascalCase Invariant](#1-strict-pascalcase-invariant)
-  - [2. Semantic Versioning Protocol](#2-semantic-versioning-protocol)
-  - [3. Remote Protocol (Mandatory SSH)](#3-remote-protocol-mandatory-ssh)
-- [Requirement Coverage Matrix](#requirement-coverage-matrix)
-- [Getting Started & Setup Guide](#getting-started--setup-guide)
+- [Architecture Overview & Technology Split](#architecture-overview--technology-split)
+- [End-to-End Sequence & State Machine](#end-to-end-sequence--state-machine)
+- [Requirements Coverage Matrix](#requirements-coverage-matrix)
+- [HubSpot Setup Guide](#hubspot-setup-guide)
+  - [1. App Scopes](#1-app-scopes)
+  - [2. Unique Identifier Property: `external_order_id`](#2-unique-identifier-property-external_order_id)
+  - [3. Discover Pipeline & Stage IDs](#3-discover-pipeline--stage-ids)
+- [Local Installation & Setup](#local-installation--setup)
   - [Prerequisites](#prerequisites)
-  - [Scaffolding Automation](#scaffolding-automation)
-  - [Manual Service Setup](#manual-service-setup)
-  - [Docker Compose Quickstart](#docker-compose-quickstart)
-- [Security & Idempotency Pipeline](#security--idempotency-pipeline)
-  - [HMAC Verification & Timing Attacks](#hmac-verification--timing-attacks)
-  - [Two-Tier Deduplication](#two-tier-deduplication)
-- [HubSpot CRM Integration & Reliability](#hubspot-crm-integration--reliability)
-  - [Deal & Contact Mapping](#deal--contact-mapping)
-  - [Rate Limiting & Exception Hierarchy](#rate-limiting--exception-hierarchy)
+  - [Environment Configuration](#environment-configuration)
+  - [Running the Services](#running-the-services)
+- [Testing the Pipeline](#testing-the-pipeline)
+  - [Mock Webhook Sender](#mock-webhook-sender)
+  - [Automated Tests](#automated-tests)
 - [Language B CSV Exporter (Req 28)](#language-b-csv-exporter-req-28)
-- [Assumptions & Design Decisions](#assumptions--design-decisions)
-- [Production Hardening & Future Improvements](#production-hardening--future-improvements)
-- [Release History](#release-history)
+- [Webhook Security & Verification](#webhook-security--verification)
+- [Two-Tier Idempotency Architecture](#two-tier-idempotency-architecture)
+- [Reliability & Retry Strategy](#reliability--retry-strategy)
+- [Design Assumptions](#design-assumptions)
+- [Future Improvements & Production Hardening](#future-improvements--production-hardening)
 
 ---
 
-## Architecture Overview
+## Architecture Overview & Technology Split
 
 ```mermaid
-flowchart TD
-    subgraph External ["External Services"]
-        Store["E-Commerce Platform / Client"]
-        HubSpot["HubSpot CRM REST API"]
+flowchart LR
+    Store["Online Store / Mock Sender"]
+    Receiver["Node.js + TypeScript API (:3001)"]
+    DB[("SQLite Database")]
+    Worker["In-Process Async Worker"]
+    HS["HubSpot CRM REST API"]
+    UI["Next.js Dashboard (:3000)"]
+    Exporter["PHP 8.4 Exporter"]
+    CSV[("deals_export.csv")]
+
+    Store -->|"POST /webhooks/orders\nraw JSON + HMAC"| Receiver
+    Receiver -->|"verify HMAC + validate schema"| Receiver
+    Receiver -->|"insert order (PK) & attempt"| DB
+    Receiver -->|"202 Accepted"| Store
+    Worker -->|"claim pending attempt"| DB
+    Worker -->|"contact search & upsert"| HS
+    Worker -->|"deal lookup (external_order_id) / create"| HS
+    Worker -->|"record success / failure + IDs"| DB
+    UI -->|"GET /api/sync-attempts?limit=50"| Receiver
+    UI -->|"POST /api/orders/:orderId/retry"| Receiver
+    Exporter -->|"search deals (last 7 days + pagination)"| HS
+    Exporter --> CSV
+```
+
+### Component Breakdown
+
+| Component | Language & Tools | Role & Coverage |
+|---|---|---|
+| **API & Sync Engine** | Node.js 22, TypeScript, Fastify, better-sqlite3 | **Requirements 22–27**: Webhook reception, raw HMAC-SHA256 verification, strict schema validation, SQLite persistence, contact upsert, deal idempotency, error retry/backoff, and dashboard REST API. |
+| **Operational Dashboard** | Next.js 15, React 19, TypeScript | **Requirement 27**: Live operational dashboard displaying recent 50 sync attempts, status badges, HubSpot CRM IDs, and manual retry button. |
+| **Accounting Exporter** | PHP 8.4, Native cURL, CLI | **Requirement 28 (Language B)**: Standalone zero-dependency script querying HubSpot deals created in the last 7 days with automatic cursor pagination streaming to CSV. |
+| **Workflow Automation** | n8n low-code workflow | **Bonus Requirement**: Ingestion, HMAC verification, contact upsert, and error notification workflow export. |
+
+---
+
+## End-to-End Sequence & State Machine
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant S as Store / Mock Sender
+    participant N as Node.js API (:3001)
+    participant D as SQLite (WAL)
+    participant H as HubSpot CRM
+    participant U as Sales Operator / UI
+
+    S->>N: POST /webhooks/orders + X-Webhook-Signature + raw JSON
+    N->>N: Verify HMAC against raw buffer (timing-safe)
+    alt Signature Missing / Invalid
+        N-->>S: 401 Unauthorized
+    else Signature Valid
+        N->>N: Validate payload schema (event, ISO offset, minor-unit totals)
+        alt Payload Invalid
+            N-->>S: 422 Unprocessable Entity
+        else Payload Valid
+            N->>D: INSERT INTO orders (order_id) PRIMARY KEY
+            alt New Order
+                N->>D: INSERT INTO sync_attempts (status='pending')
+                N-->>S: 202 Accepted (orderId, attemptId)
+                N->>D: Atomically claim attempt (status='processing')
+                N->>H: Search contact by email
+                alt Contact Exists
+                    N->>H: PATCH contact firstname, lastname, phone
+                else Contact Absent
+                    N->>H: POST contact
+                end
+                N->>H: Search deal by external_order_id
+                alt Deal Exists
+                    N->>H: Ensure contact association
+                else Deal Absent
+                    N->>H: POST deal with contact association
+                end
+                N->>D: Mark attempt succeeded (save deal & contact IDs)
+                N->>D: Mark order succeeded (save canonical IDs)
+            else Duplicate order_id (Req 24)
+                N->>D: Read existing canonical order state
+                N-->>S: 200 OK (duplicate=true, status, existing IDs)
+            end
+        end
     end
 
-    subgraph ReceiverTier ["Tier 1: Receiver (Node.js / TS)"]
-        Fastify["Fastify HTTP Server (:3000)"]
-        HMAC["Timing-Safe HMAC-SHA256"]
-        Zod["Zod Payload Validator"]
-        Forward["Internal Forwarder (X-Internal-Token)"]
-    end
-
-    subgraph BackendTier ["Tier 2: Core Backend (Laravel 11 / PHP 8.4)"]
-        TokenAuth["VerifyInternalToken Middleware"]
-        InternalCtrl["InternalOrderController (:8000)"]
-        DedupeAction["ReceiveOrderAction (Idempotency)"]
-        SyncJob["SyncOrderJob (Database Queue)"]
-        Lock["Atomic Lock (30s per Order ID)"]
-        Service["OrderSyncService"]
-        Gateway["HubspotGateway"]
-        Client["HubspotClient (Backoff & 429 Handling)"]
-        DB[(SQLite / Database Ledger)]
-    end
-
-    subgraph FrontendTier ["Tier 3: Monitoring Dashboard (Next.js 15)"]
-        Dash["SyncDashboard (React 19 / App Router)"]
-        Hook["useSyncs Hook (Live Polling)"]
-        Retry["useRetry Hook (POST /api/syncs/{id}/retry)"]
-    end
-
-    Store -- "POST /webhooks/orders (X-Signature)" --> Fastify
-    Fastify --> HMAC
-    HMAC --> Zod
-    Zod --> Forward
-    Forward -- "POST /api/internal/orders" --> TokenAuth
-    TokenAuth --> InternalCtrl
-    InternalCtrl --> DedupeAction
-    DedupeAction -- "Check Existing" --> DB
-    DedupeAction -- "Dispatch Async" --> SyncJob
-    SyncJob --> Lock
-    Lock --> Service
-    Service --> Gateway
-    Gateway --> Client
-    Client -- "REST CRM v3 Calls" --> HubSpot
-    Service -- "Write Transaction" --> DB
-
-    Hook -- "GET /api/syncs" --> DB
-    Retry -- "POST /api/syncs/{id}/retry" --> SyncJob
-    Dash --- Hook
-    Dash --- Retry
+    U->>N: POST /api/orders/:orderId/retry
+    N->>D: Check latest state is 'failed' (reject 409 if in-flight or succeeded)
+    N->>D: INSERT INTO sync_attempts (trigger='manual_retry', status='pending')
+    N-->>U: 202 Accepted (attemptId)
+    N->>N: Dispatch idempotent sync worker using original orders.payload_json
 ```
 
 ---
 
-## System Components & Language Split
+## Requirements Coverage Matrix
 
-| Layer | Technology | Primary Responsibilities |
-|---|---|---|
-| **Tier 1: Ingress Receiver** | Node.js 22, Fastify, Zod, Vitest (Language A) | Ingests webhooks, preserves raw buffer for timing-safe HMAC-SHA256 signature verification, validates payload schema, and forwards to backend. |
-| **Tier 2: Processing Core** | PHP 8.4, Laravel 11, SQLite, DB Queue (Language B) | Internal token verification, order deduplication, atomic locking, asynchronous queue dispatch, HubSpot CRM API integration, and audit logging. |
-| **Tier 3: Dashboard** | Next.js 15, React 19, TypeScript | Real-time monitoring dashboard, status badge visualization, polling synchronization ledger, and manual attempt retry mutation. |
-| **Tooling & Ops** | Docker Compose, n8n, Bash, PowerShell | Multi-container orchestration, low-code fallback workflow, automated infrastructure scaffolding. |
-
----
-
-## Engineering Guidelines & Invariants
-
-All development in this repository strictly adheres to the invariants codified in [AGENTS.md](AGENTS.md):
-
-### 1. Strict PascalCase Invariant
-- **Mandatory PascalCase**: Strictly enforced for all object and type declarations across all languages:
-  - **Classes**: `ReceiveOrderAction`, `HubspotClient`, `DealMapper`, `OrderSyncService`, `SyncOrderJob`.
-  - **TypeScript Types & Interfaces**: `SyncAttempt`, `OrderPayload`, `CustomerProfile`, `UseSyncsReturn`.
-  - **PHP DTOs & Enums**: `OrderData`, `SyncStatus`.
-  - **React Components**: `SyncDashboard`, `SyncTable`, `StatusBadge`, `RetryButton`.
-- **Strictly Prohibited**: Never use `PascalCase` for everyday variables, function names, properties, or methods (`camelCase` in TypeScript, `camelCase`/`snake_case` in PHP).
-
-### 2. Semantic Versioning Protocol
-- Starting Version: `v0.1.0`.
-- Format: `vMAJOR.MINOR.PATCH` compliant with SemVer 2.0.0.
-- Rules:
-  - `PATCH`: Bug fixes, hotfixes, refactors, and documentation updates without contract changes.
-  - `MINOR`: New backward-compatible features, endpoints, or schema extensions.
-  - `MAJOR`: Breaking changes or incompatible contract overhauls.
-- Every release updates [VERSION](VERSION), logs changes in [CHANGELOG.md](CHANGELOG.md), and creates an annotated Git tag `vX.Y.Z`.
-
-### 3. Remote Protocol (Mandatory SSH)
-- **Requirement**: Always use SSH URLs for git remotes: `git@github.com:RaymundGerardReyes/Order-Hubspot-Sync.git`.
-- **Rationale**: Bypasses Windows Credential Manager HTTPS OAuth token collisions between local accounts, utilizing your machine's pre-authenticated SSH key.
+| Requirement | Brief Specification | Architecture Implementation | Verification Evidence |
+|:---:|---|---|---|
+| **22** | Webhook Receiver (Language A: Node.js/TS) | Fastify server with raw-body preservation, HMAC-SHA256 timing-safe comparison, and strict Zod validation. | `receiver/src/server.ts`, `hmac.ts`, `schema.ts` |
+| **23** | HubSpot Sync (Contact + Deal + Association) | Contact search by email, PATCH if found, POST if absent; Deal created with contact association in one call. | `receiver/src/hubspot/repository.ts`, `domain/sync.service.ts` |
+| **24** | Idempotency | Dual-tier: SQLite `order_id` PRIMARY KEY + HubSpot unique `external_order_id` property search. | `receiver/src/db/repositories.ts`, `server.ts` |
+| **25** | Reliability & Backoff | Retries `429` (respects `Retry-After`) and `5xx` with exponential backoff & jitter (max 4 attempts). Never retries permanent `4xx`. | `receiver/src/hubspot/client.ts` |
+| **26** | Durable Storage | SQLite WAL mode with `orders` and append-only `sync_attempts` tables storing CRM IDs, error codes, and timestamps. | `receiver/src/db/migrations.ts`, `repositories.ts` |
+| **27** | Dashboard | Next.js table displaying recent 50 sync attempts with live polling and selective retry button for failed attempts. | `web/src/features/syncs/*`, `receiver/src/server.ts` |
+| **28** | Second Language (Language B: PHP) | Standalone PHP 8.4 script traversing HubSpot CRM Search API with cursor pagination, streaming results to CSV. | `exporter/export-deals.php` |
+| **29** | Complete README | Full architectural guide, setup instructions, assumptions, and future scaling path. | `README.md` |
+| **Bonus** | Docker Compose Stack | Multi-container setup for API and Next.js frontend with SQLite persistent volumes. | `docker-compose.yml` |
+| **Bonus** | n8n Low-Code Workflow | Visual workflow with HMAC check, contact upsert, deal creation, and error notification flow. | `n8n/order-to-hubspot.json` |
 
 ---
 
-## Requirement Coverage Matrix
+## HubSpot Setup Guide
 
-| Req | Requirement Description | Implementation Files | Status |
-|:---:|---|---|:---:|
-| **22** | Webhook Receiver, HMAC Verification & Validation | `receiver/src/server.ts`, `hmac.ts`, `schema.ts`, `forward.ts` | **Completed** |
-| **23** | HubSpot CRM Sync (Contact, Deal, Association) | `backend/app/Services/Hubspot/*`, `OrderData.php` | **Completed** |
-| **24** | Two-Layer Idempotency & Deduplication | `Order.php`, `ReceiveOrderAction.php`, `IdempotencyTest.php` | **Completed** |
-| **25** | Reliability, Retry-After & Exception Classification | `HubspotClient.php`, `UpstreamUnavailableException.php`, `UpstreamRejectedException.php` | **Completed** |
-| **26** | Audit Storage & State Machine | `SyncAttempt.php`, `SyncStatus.php`, database migrations | **Completed** |
-| **27** | Real-Time Monitoring Dashboard & Manual Retries | `SyncAttemptController.php`, `web/src/features/syncs/*` | **Completed** |
-| **28** | Language B Export (HubSpot Deals to CSV) | `ExportHubspotDeals.php`, `ExportTest.php` | **Completed** |
-| **29** | Complete Documentation, Environment & Mock Tools | `README.md`, `.env.example` | **Completed** |
-| **Bonus** | Docker Compose Stack & n8n Low-Code Workflow | `docker-compose.yml`, `n8n/order-to-hubspot.json` | **Completed** |
+### 1. App Scopes
+Create a **Private App** in your HubSpot Developer Test Account (under *Settings → Integrations → Private Apps*) and grant the following scopes:
+- `crm.objects.contacts.read`
+- `crm.objects.contacts.write`
+- `crm.objects.deals.read`
+- `crm.objects.deals.write`
+
+Copy the generated **Access Token** (`pat-na1-...`) into your `.env` file as `HUBSPOT_ACCESS_TOKEN`.
+
+### 2. Unique Identifier Property: `external_order_id`
+To ensure deal idempotency on the CRM layer (closing crash windows):
+1. In HubSpot, navigate to *Settings → Data Management → Properties*.
+2. Select **Deal properties** from the dropdown.
+3. Click **Create property**:
+   - **Label**: `External Order ID`
+   - **Internal Name**: `external_order_id`
+   - **Field Type**: Single-line text
+   - **Uniqueness**: Select **Require unique values for this property** (or check *Unique value*).
+
+### 3. Discover Pipeline & Stage IDs
+Do not hardcode UI labels (like "Closed Won"). Retrieve your portal's internal pipeline and stage IDs:
+```bash
+curl -X GET "https://api.hubapi.com/crm/v3/pipelines/deals" \
+  -H "Authorization: Bearer YOUR_HUBSPOT_ACCESS_TOKEN"
+```
+Look for:
+- `id` under `results[0]` (e.g. `default`) → assign to `HUBSPOT_PIPELINE_ID`
+- `id` under `stages` (e.g. `closedwon` or `1234567`) → assign to `HUBSPOT_DEAL_STAGE_ID`
 
 ---
 
-## Getting Started & Setup Guide
+## Local Installation & Setup
 
 ### Prerequisites
-- **Node.js**: v20.0+ (v22 LTS recommended)
-- **PHP**: v8.2+ (v8.4 recommended) with `pdo_sqlite`, `curl`, `mbstring` extensions
-- **Composer**: v2.6+
-- **Git**: Configured with SSH access to GitHub
+- **Node.js**: v20+ or v22 LTS
+- **PHP**: v8.2+ or v8.4 (for Language B exporter) with `curl`
+- **Git**: Configured with SSH access
 
----
-
-### Scaffolding Automation
-
-The repository includes idempotent automation scripts to verify or generate the entire 51-file infrastructure hierarchy:
-
-#### Linux / macOS / Git Bash:
-```bash
-chmod +x scaffold.sh
-./scaffold.sh
-```
-
-#### Windows PowerShell:
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scaffold.ps1
-```
-
----
-
-### Manual Service Setup
-
-#### 1. Configuration Setup
-Copy the environment template:
+### Environment Configuration
 ```bash
 cp .env.example .env
 ```
-Ensure your HubSpot Private App Token is configured in `.env`:
+Fill in `.env`:
 ```env
-WEBHOOK_SECRET=your_hmac_signing_secret
-INTERNAL_TOKEN=internal_shared_secret_bearer_token
+PORT=3001
+DATABASE_URL=file:./data/order-sync.sqlite
+WEBHOOK_SECRET=your_hmac_signing_secret_here
+
 HUBSPOT_ACCESS_TOKEN=pat-na1-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 HUBSPOT_PIPELINE_ID=default
-HUBSPOT_STAGE_ID=closedwon
+HUBSPOT_DEAL_STAGE_ID=closedwon
+HUBSPOT_ORDER_ID_PROPERTY=external_order_id
+
+NEXT_PUBLIC_API_BASE_URL=http://localhost:3001
 ```
 
-#### 2. Receiver Service (Language A)
+### Running the Services
+
+#### 1. Integration API (Node.js/TypeScript)
 ```bash
 cd receiver
 npm install
-npm run build
-npm start
-# Listening on http://localhost:3000
-```
-Run receiver unit tests:
-```bash
-npm test
+npm run dev
+# Server listening on http://localhost:3001
 ```
 
-#### 3. Core Backend (Language B)
-```bash
-cd backend
-composer install
-touch database/database.sqlite
-php artisan migrate
-php artisan serve
-# Listening on http://localhost:8000
-```
-Start the asynchronous queue worker in a separate terminal:
-```bash
-php artisan queue:work --tries=3 --timeout=90
-```
-Run backend tests:
-```bash
-php artisan test
-```
-
-#### 4. Web Dashboard (Next.js)
+#### 2. Web Dashboard (Next.js)
 ```bash
 cd web
 npm install
 npm run dev
-# Dashboard running at http://localhost:3001 (or :3000)
+# Dashboard running at http://localhost:3000
 ```
 
----
-
-### Docker Compose Quickstart
-
-Run the complete multi-service stack with a single command:
+#### 3. Docker Compose (Alternative)
 ```bash
-docker compose up -d --build
+docker compose up --build -d
 ```
-This launches:
-- `receiver` on port `3000`
-- `backend` on port `8000`
-- `worker` running Laravel queue worker
-- `web` on port `3001`
 
 ---
 
-## Security & Idempotency Pipeline
+## Testing the Pipeline
 
-### HMAC Verification & Timing Attacks
-- In incoming webhooks, raw body payloads are intercepted as byte buffers before JSON deserialization to guarantee that byte-level variations do not compromise hash computations.
-- Signature comparison in [`receiver/src/hmac.ts`](receiver/src/hmac.ts) utilizes `crypto.timingSafeEqual`, preventing timing-analysis side-channel vulnerabilities.
+### Mock Webhook Sender
+A test utility in `scripts/mock-webhook.ts` generates valid HMAC-SHA256 signatures over raw JSON bytes and dispatches to the receiver:
 
-### Two-Tier Deduplication
-1. **Controller / Action Level**: When an order payload arrives, [`ReceiveOrderAction`](backend/app/Actions/ReceiveOrderAction.php) checks if `Order::where('order_id', $orderId)->exists()`. If already processed, it immediately responds with `200 OK (status: duplicate)` and halts re-ingestion.
-2. **Worker Queue Level**: When [`SyncOrderJob`](backend/app/Jobs/SyncOrderJob.php) executes, it obtains an atomic cache lock on `order_sync_lock:{orderId}` for 30 seconds. This prevents concurrent workers from synchronizing the same order simultaneously.
+```bash
+npx tsx scripts/mock-webhook.ts
+```
 
----
+Or test using `curl`:
+```bash
+BODY='{"event":"order.created","order_id":"ORD-10482","created_at":"2026-09-20T14:32:00+08:00","customer":{"email":"maria.santos@example.com","first_name":"Maria","last_name":"Santos","phone":"+639171234567"},"items":[{"sku":"TSH-BLK-M","name":"Black Tee (M)","qty":2,"price":450.00}],"currency":"PHP","total":900.00}'
 
-## HubSpot CRM Integration & Reliability
+SIG=$(echo -n "$BODY" | openssl dgst -sha256 -hmac "replace-with-a-long-random-secret" | awk '{print $2}')
 
-### Deal & Contact Mapping
-Mapping logic in [`DealMapper`](backend/app/Services/Hubspot/DealMapper.php) is isolated and pure:
-- Deals are mapped with `dealname`, `amount`, `pipeline`, `dealstage`, and `closedate` formatted strictly as midnight UTC ISO-8601.
-- Contacts are extracted by splitting customer names into `firstname` and `lastname` alongside `email`.
-- [`HubspotGateway`](backend/app/Services/Hubspot/HubspotGateway.php) performs contact deduplication by querying `crm/v3/objects/contacts/search` prior to creation, avoiding duplicate customer records.
-- Associated deals and contacts are linked via HubSpot's association endpoint (`deals/{dealId}/associations/contacts/{contactId}/3`).
+curl -X POST http://localhost:3001/webhooks/orders \
+  -H "Content-Type: application/json" \
+  -H "X-Webhook-Signature: $SIG" \
+  -d "$BODY"
+```
 
-### Rate Limiting & Exception Hierarchy
-- [`HubspotClient`](backend/app/Services/Hubspot/HubspotClient.php) inspects HTTP response status codes:
-  - **429 (Rate Limit)** & **5xx (Server Errors)**: Parses the `Retry-After` header and executes exponential backoff (`2^attempt` seconds), raising an [`UpstreamUnavailableException`](backend/app/Exceptions/UpstreamUnavailableException.php) if all retries are exhausted.
-  - **4xx (Client Errors)**: Permanent schema/payload rejections raise [`UpstreamRejectedException`](backend/app/Exceptions/UpstreamRejectedException.php), marking the attempt as permanently failed without wasting queue retries.
+### Automated Tests
+Run comprehensive test suites covering unit, integration, and regression tiers:
+```bash
+# In receiver/ directory:
+npm test
+
+# In web/ directory:
+npm test
+```
 
 ---
 
 ## Language B CSV Exporter (Req 28)
 
-To satisfy Requirement 28, an Artisan console command exports recent deals from HubSpot directly into a CSV file:
+The second-language component is implemented in **standalone PHP 8.4** (`exporter/export-deals.php`). It requires no Laravel or Composer installation and uses native streaming with `fputcsv()`.
 
 ```bash
-# Export deals created in the last 7 days to deals_export.csv
-php artisan hubspot:export-deals --days=7 --output=deals_export.csv
+# Export all deals from the last 7 days:
+php exporter/export-deals.php --days=7 --output=deals_export.csv
 ```
 
 Features:
-- Search filter query for `createdate >= {cutoffDate}`.
-- Automatic cursor pagination handling via HubSpot's `paging.next.after`.
-- Generates standard CSV headers: `Deal ID`, `Order ID`, `Deal Name`, `Amount`, `Stage`, `Close Date`, `Create Date`.
+- Traverses the HubSpot Deals Search API with `createdate >= cutoff`.
+- Exhausts all pagination cursors (`paging.next.after`).
+- Memory-efficient streaming directly to disk.
+- Writes header even when 0 deals match.
+- Exits non-zero with diagnostic output on failure.
 
 ---
 
-## Assumptions & Design Decisions
+## Webhook Security & Verification
 
-1. **Lightweight Database Queue**: Used Laravel's database queue driver instead of Redis to ensure zero external infrastructure dependencies for local evaluation while preserving full ACID transaction semantics.
-2. **Fastify Over Express**: Fastify was selected for Tier 1 due to native support for raw body parsing buffers and high throughput.
-3. **Append-Only Attempts Ledger**: Every sync execution (whether initial or retried) generates a new record in `sync_attempts` with a foreign key pointer `retry_of`, preserving complete historical auditability.
-
----
-
-## Production Hardening & Future Improvements
-
-- **Webhook Nonce & Replay Prevention**: Introduce a mandatory timestamp window and nonce verification in the HMAC header to guard against replay attacks.
-- **Dead Letter Queue (DLQ) Alerting**: Integrate Slack or PagerDuty webhooks when an attempt exhausts maximum retries.
-- **Redis Queue Scaling**: Swap database queue for Redis or Amazon SQS when throughput exceeds 500 orders/sec.
-- **Prometheus Metrics**: Expose Prometheus endpoints (`/metrics`) measuring attempt latencies, rate limit occurrences, and failure rates.
+1. **Exact Raw-Body Verification**: In `receiver/src/server.ts`, Fastify's content type parser receives the raw payload as a `Buffer`. Verification occurs **before** JSON parsing to prevent discrepancies caused by key order or spacing.
+2. **Timing-Safe Equality**: Verification in `receiver/src/hmac.ts` uses `crypto.timingSafeEqual()`, protecting against timing-attack vulnerabilities.
+3. **Prefix Flexibility**: Accepts both `sha256=<hex>` and raw lowercase 64-character hexadecimal digests.
 
 ---
 
-## Release History
+## Two-Tier Idempotency Architecture
 
-See [CHANGELOG.md](CHANGELOG.md) for full historical release notes.
+To guarantee that duplicate webhooks never create duplicate deals in HubSpot:
+1. **Local SQLite Guard**: The `orders` table defines `order_id TEXT PRIMARY KEY`. Simultaneous duplicate webhook posts hit SQLite's atomic uniqueness constraint via `INSERT ... ON CONFLICT DO NOTHING`, returning the canonical order state immediately.
+2. **HubSpot Guard**: Before deal creation, the sync engine searches HubSpot for deals where `external_order_id = :orderId`. If a crash occurred after HubSpot deal creation but before local SQLite update, the retry finds the existing deal, associates it with the contact, and updates the local database.
 
-- **`v0.8.2`**: Comprehensive production documentation, architecture specs, and setup instructions.
-- **`v0.8.1`**: Remote protocol configuration patch ensuring mandatory SSH usage.
-- **`v0.8.0`**: Docker Compose containerization stack, n8n workflow, and environment templates.
-- **`v0.7.0`**: Language B HubSpot deals CSV export Artisan command and tests.
-- **`v0.6.0`**: Next.js 15 monitoring dashboard, polling hooks, and backend sync APIs.
-- **`v0.5.0`**: Fastify HMAC receiver service, Zod validator, and internal ingress controller.
-- **`v0.4.0`**: Queue worker, idempotency actions, and feature test suites.
-- **`v0.3.0`**: HubSpot CRM client, gateway, mapper, and exception handlers.
-- **`v0.2.0`**: Domain models, DTOs, finite state machine, and database migrations.
-- **`v0.1.0`**: Initial template infrastructure scaffold and PascalCase governance baseline.
+---
+
+## Reliability & Retry Strategy
+
+HubSpot API requests (`receiver/src/hubspot/client.ts`) execute with automated retry:
+- **Retryable Errors**: `429 Too Many Requests` (honors `Retry-After` header when provided) and `5xx Server Errors`.
+- **Backoff Algorithm**: Exponential backoff (500ms, 1000ms, 2000ms) with random jitter (0–250ms). Maximum 4 total attempts.
+- **Terminal Errors**: `400 Bad Request`, `401 Unauthorized`, and `422 Unprocessable Entity` immediately fail without looping to conserve quota.
+
+---
+
+## Design Assumptions
+
+1. **HMAC Header**: Defaults to `X-Webhook-Signature` (with `X-Signature` supported as fallback).
+2. **Close Date**: Mapped to midnight UTC of the order's `created_at` timestamp.
+3. **Minor-Unit Validation**: Order totals are cross-checked against the sum of items (`sum(qty * price)`) in integer minor units (centavos) to reject corrupted payloads.
+4. **Manual Retry Source**: Retries re-read the original payload from `orders.payload_json`; client-supplied request bodies on retry are discarded to prevent tampering.
+
+---
+
+## Future Improvements & Production Hardening
+
+- **Timestamp & Nonce Replay Guard**: Require `X-Webhook-Timestamp` within a 5-minute validity window.
+- **Dedicated Queue Broker**: Swap in-process `setImmediate` for BullMQ/Redis when sustaining >500 webhook deliveries/sec.
+- **Multi-Tenant OAuth**: Expand authentication from private app tokens to HubSpot OAuth 2.0 flow.
+- **Prometheus Metrics**: Export `/metrics` measuring ingestion latencies and upstream rate-limit occurrences.

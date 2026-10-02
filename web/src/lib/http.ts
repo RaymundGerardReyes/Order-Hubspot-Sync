@@ -17,7 +17,8 @@ export class HttpError extends Error {
 export class HttpClient {
   private baseUrl: string;
 
-  constructor(baseUrl: string = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api') {
+  // Default base URL points to the unified Node.js API (port 3001)
+  constructor(baseUrl: string = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3001') {
     this.baseUrl = baseUrl.replace(/\/$/, '');
   }
 

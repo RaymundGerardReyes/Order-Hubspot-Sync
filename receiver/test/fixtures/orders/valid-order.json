@@ -1,4 +1,5 @@
 {
+  "event": "order.created",
   "orderId": "ORD-10482",
   "customer": {
     "name": "Alex Taylor",

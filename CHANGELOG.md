@@ -5,6 +5,37 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.0.0] - 2026-10-03
+
+### Changed
+- Refactored entire architecture to match `HubSpot Order Sync Logic and Requirements Analysis (1).md`: consolidated Requirements 22–27 into a single, high-performance Node.js/TypeScript Fastify service with SQLite WAL mode and in-process async worker.
+- Removed over-engineered Laravel `backend/` service and cross-service HTTP forwarding layer.
+- Reimplemented Requirement 28 (Language B) as a standalone zero-dependency PHP 8.4 script in `exporter/export-deals.php` with native streaming CSV output and HubSpot search cursor pagination.
+- Enforced strict payload validation: `event` literal `"order.created"`, ISO 8601 with timezone offset, bounded `order_id` (1–100 chars), non-empty customer name, and integer minor-unit total cross-validation (`sum(qty * price)`).
+- Implemented two-tier idempotency: SQLite `orders.order_id` PRIMARY KEY guard plus HubSpot `external_order_id` property search.
+- Updated Next.js dashboard client to interface directly with Node.js endpoints (`/api/sync-attempts`, `/api/orders/:orderId/retry`).
+- Streamlined `docker-compose.yml`, `.env.example`, CI pipeline `.github/workflows/tests.yml`, and `README.md`.
+
+## [v0.12.0] - 2026-10-03
+
+### Added
+- Root full-stack E2E test suite in `e2e/` with Playwright, mock HubSpot server, signed webhook support, and polling utilities.
+- Five full-stack E2E specs: `happy-path.spec.ts`, `duplicate-webhook.spec.ts`, `bad-signature.spec.ts`, `hubspot-outage-then-retry.spec.ts`, and `csv-export.spec.ts`.
+- GitHub Actions CI pipeline `.github/workflows/tests.yml` with parallel gates (Unit, Integration, Regression, and Nightly E2E Sandbox).
+- Comprehensive test documentation in `docs/testing/README.md` and active regression catalog in `docs/testing/regression-log.md`.
+- E2E Docker Compose test stack definition (`e2e/docker-compose.e2e.yml`).
+
+## [v0.11.0] - 2026-10-03
+
+### Added
+- Complete Next.js web test suite complying with `TESTING_MODULES.md`.
+- MSW node server and mock data handlers in `web/tests/mocks/`.
+- Web Unit tests: `RetryButton.test.tsx`, `StatusBadge.test.tsx`, `SyncTable.test.tsx`, `api.test.ts`, `format.test.ts`, `useRetry.test.tsx`, `useSyncs.test.tsx`, `http.test.ts`.
+- Web Integration tests: `SyncDashboard.integration.test.tsx`, `retry-flow.integration.test.tsx`.
+- Web Playwright E2E specs and page objects: `DashboardPage.ts`, `dashboard-list.spec.ts`, `retry-failed.spec.ts`, `empty-and-error-states.spec.ts`.
+- Web Regression tests: `REG-001-retry-only-failed.test.tsx`, `REG-002-polling-pauses-hidden-tab.test.tsx`, `REG-003-error-keeps-last-data.test.tsx`, `REG-004-double-click-retry.test.tsx`.
+- Centralized formatting module in `web/src/features/syncs/format.ts`.
+
 ## [v0.10.0] - 2026-10-03
 
 ### Added

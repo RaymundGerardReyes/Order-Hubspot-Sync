@@ -29,12 +29,19 @@ backend/storage/framework/cache/data/*
 backend/storage/framework/sessions/*
 backend/storage/framework/views/*
 
-# Logs and SQLite databases
+# Logs, SQLite databases, and data directory
 *.log
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+*.sqlite-journal
+data/
+receiver/data/
 database/*.sqlite
 database/*.sqlite-journal
-backend/database/*.sqlite
-backend/database/*.sqlite-journal
+
+# Generated CSV exports
+*.csv
 
 # Testing & coverage
 coverage/

@@ -1,12 +1,13 @@
 {
-  "name": "order-hubspot-sync-receiver",
-  "version": "0.9.0",
+  "name": "order-hubspot-sync-api",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "tsx watch src/index.ts",
+    "dev": "tsx watch src/main.ts",
     "build": "tsc",
-    "start": "node dist/index.js",
+    "start": "node dist/main.js",
+    "db:migrate": "tsx src/db/migrate.ts",
     "test": "vitest run test/unit test/integration test/regression",
     "test:unit": "vitest run test/unit",
     "test:integration": "vitest run test/integration",
@@ -14,11 +15,13 @@
     "test:regression": "vitest run test/regression"
   },
   "dependencies": {
+    "better-sqlite3": "^9.6.0",
     "dotenv": "^16.4.5",
     "fastify": "^4.28.1",
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "@types/better-sqlite3": "^7.6.11",
     "@types/node": "^22.5.4",
     "tsx": "^4.19.0",
     "typescript": "^5.5.4",

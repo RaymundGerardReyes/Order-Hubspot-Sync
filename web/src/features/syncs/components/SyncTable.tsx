@@ -2,6 +2,7 @@ import React from 'react';
 import { SyncAttempt } from '../types';
 import { RetryButton } from './RetryButton';
 import { StatusBadge } from './StatusBadge';
+import { formatDate } from '../format';
 
 export interface SyncTableProps {
   syncs: SyncAttempt[];
@@ -17,15 +18,6 @@ export function SyncTable({ syncs, onRetry, retryingId }: SyncTableProps): React
       </div>
     );
   }
-
-  const formatDate = (isoString?: string | null): string => {
-    if (!isoString) return '-';
-    try {
-      return new Date(isoString).toLocaleString();
-    } catch {
-      return isoString;
-    }
-  };
 
   return (
     <div style={{ overflowX: 'auto', border: '1px solid #E5E7EB', borderRadius: '8px' }}>

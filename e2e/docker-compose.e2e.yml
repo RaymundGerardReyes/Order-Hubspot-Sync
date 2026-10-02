@@ -1,0 +1,16 @@
+services:
+  hubspot-mock:
+    image: node:22-alpine
+    working_dir: /app
+    volumes:
+      - ./mocks:/app/mocks
+    command: node -e "const { HubspotMockServer } = require('./mocks/hubspot-mock-server.ts'); new HubspotMockServer().start(8888);"
+    ports:
+      - "8888:8888"
+
+  api:
+    environment:
+      HUBSPOT_BASE_URL: http://hubspot-mock:8888
+      HUBSPOT_ACCESS_TOKEN: e2e-mock-token
+      DATABASE_URL: file:/app/data/e2e-order-sync.sqlite
+      WEBHOOK_SECRET: e2e-webhook-secret

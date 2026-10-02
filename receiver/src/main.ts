@@ -1,31 +1,18 @@
-import { loadConfig } from './config';
-import { buildServer } from './server';
+import 'dotenv/config';
+import { loadConfig } from './config.js';
+import { buildServer } from './server.js';
 
-async function main(): Promise<void> {
+async function main() {
   const config = loadConfig();
-  const server = buildServer({ config });
-
-  const closeGracefully = async (signal: string) => {
-    server.log.info(`Received ${signal}, shutting down receiver...`);
-    await server.close();
-    process.exit(0);
-  };
-
-  process.on('SIGINT', () => closeGracefully('SIGINT'));
-  process.on('SIGTERM', () => closeGracefully('SIGTERM'));
+  const app = buildServer({ config });
 
   try {
-    await server.listen({ port: config.port, host: '0.0.0.0' });
-    server.log.info(`Receiver server listening on port ${config.port}`);
+    await app.listen({ port: config.port, host: '0.0.0.0' });
+    console.info(`[API] Order-HubSpot Sync API listening on port ${config.port}`);
   } catch (err) {
-    server.log.error(err, 'Failed to start receiver server');
+    app.log.error(err);
     process.exit(1);
   }
 }
 
-if (require.main === module) {
-  main().catch((err) => {
-    console.error('Fatal initialization error:', err);
-    process.exit(1);
-  });
-}
+main();

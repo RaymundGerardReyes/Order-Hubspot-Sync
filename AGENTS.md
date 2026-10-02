@@ -27,3 +27,42 @@
 ## 3. Remote Protocol: Mandatory SSH Usage
 - **Requirement**: Always configure and use SSH URLs for git remotes (`git@github.com:RaymundGerardReyes/Order-Hubspot-Sync.git`).
 - **Rationale**: Bypasses Windows Credential Manager HTTPS OAuth token collisions between local accounts (e.g., `RaymundGerardEstaca` vs `RaymundGerardReyes`), utilizing the machine's pre-configured, authenticated SSH key.
+
+## 4. Take-Home Brief & Payload Contract Alignment
+- **Canonical Payload Acceptance**:
+  - The webhook receiver, backend request validators, and DTOs must always support the canonical Stage 2 brief payload:
+    - Top-level: `event`, `order_id`, `created_at`, `currency`, `total`
+    - Customer block: `email`, `first_name`, `last_name`, `phone`
+    - Items array: `sku`, `name`, `qty`, `price`
+  - While camelCase variants (`orderId`, `totalAmount`, `quantity`, `unitPrice`) may be supported for internal compatibility, the brief's sample payload must never be rejected.
+
+## 5. CRM Contact Upsert Lifecycle (Requirement 23)
+- When syncing orders to HubSpot:
+  - Search for existing contact by email.
+  - If found: **Update** the contact's properties (`PATCH /crm/v3/objects/contacts/{id}`) with the incoming order's name and phone.
+  - If not found: **Create** the contact (`POST /crm/v3/objects/contacts`).
+  - Always link the created/found deal to the contact.
+
+## 6. Durable Sync Attempt Storage (Requirement 26)
+- Every sync attempt record in the database (`sync_attempts`) must store:
+  - `order_id`, `status`, `hubspot_deal_id`, `hubspot_contact_id`, `failure_code`, `failure_message`, `retry_of`, `attempt_number`, `started_at`, `completed_at`.
+  - Storing CRM IDs directly on the attempt guarantees that sales operators can audit which specific deal and contact were associated with each sync attempt.
+
+## 7. Single-Service Integration Architecture & Language B Component Boundary
+- **Core Requirements (22–27)**:
+  - All core integration requirements (webhook receiver, HMAC signature check, schema validation, HubSpot deal/contact synchronization, SQLite persistence, and dashboard endpoints) must be implemented within the single Node.js/TypeScript service (`receiver/`).
+  - Do NOT split the core integration across microservice boundaries or introduce auxiliary web backends (such as Laravel/Django).
+- **Language B Component (Requirement 28)**:
+  - The second-language requirement is strictly a standalone script (`exporter/export-deals.php`) for 7-day CSV deal export.
+  - It must remain independent and lightweight without requiring a heavyweight web framework or external daemon.
+
+## 8. Two-Tier Idempotency Guard (Local PK + HubSpot External Property)
+- **Local DB Layer**:
+  - `orders.order_id` must be defined as `PRIMARY KEY` (or `UNIQUE`).
+  - Ingestion must insert the order atomically (`INSERT ... ON CONFLICT DO NOTHING`) to prevent concurrent race conditions.
+  - Sequential duplicates must return HTTP `200 OK` with `duplicate: true` and the existing canonical state, without enqueuing a duplicate sync.
+- **HubSpot CRM Layer**:
+  - Deals must store the order ID in a custom unique identifier property (`external_order_id`).
+  - Prior to creating a deal, the sync engine must search for an existing deal with `external_order_id = :orderId`.
+  - If found (e.g., recovery after an unrecorded crash), the existing deal is associated with the contact and reused rather than duplicated.
+

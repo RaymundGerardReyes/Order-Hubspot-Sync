@@ -1,0 +1,89 @@
+name: Automated Test Suite
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  # -------------------------------------------------------------
+  # Tier 1: Fast Unit Tests Gate
+  # -------------------------------------------------------------
+  unit-api:
+    name: API Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: receiver/package.json
+      - run: cd receiver && npm install && npm run test:unit
+
+  unit-web:
+    name: Web Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package.json
+      - run: cd web && npm install && npm run test:unit
+
+  check-exporter-php:
+    name: PHP Language B Exporter Syntax & Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: curl, json
+      - name: Validate PHP script syntax
+        run: php -l exporter/export-deals.php
+
+  # -------------------------------------------------------------
+  # Tier 2: Integration Tests (Parallel)
+  # -------------------------------------------------------------
+  integration-api:
+    name: API Integration Tests
+    needs: [unit-api, unit-web, check-exporter-php]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: cd receiver && npm install && npm run test:integration
+
+  integration-web:
+    name: Web Integration Tests
+    needs: [unit-api, unit-web, check-exporter-php]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: cd web && npm install && npm run test:integration
+
+  # -------------------------------------------------------------
+  # Tier 3: Regression Suite (Mandatory Gate)
+  # -------------------------------------------------------------
+  regression:
+    name: Regression Suite Gate
+    needs: [integration-api, integration-web]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: API Regression Tests
+        run: cd receiver && npm install && npm run test:regression
+      - name: Web Regression Tests
+        run: cd web && npm install && npm run test:regression

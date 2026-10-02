@@ -1,10 +1,10 @@
 /**
  * Core domain status for order sync attempts.
  */
-export type SyncStatus = 'pending' | 'processing' | 'success' | 'failed';
+export type SyncStatus = 'pending' | 'processing' | 'success' | 'succeeded' | 'failed';
 
 /**
- * Sync attempt record mirroring backend SyncAttemptResource.
+ * Sync attempt record mirroring unified Node.js API response.
  */
 export interface SyncAttempt {
   id: string;
@@ -12,13 +12,23 @@ export interface SyncAttempt {
   status: SyncStatus;
   hubspotDealId?: string | null;
   hubspotContactId?: string | null;
-  retryOf: string | null;
-  attemptNumber: number;
-  failureCode: string | null;
-  failureMessage: string | null;
-  startedAt: string | null;
-  completedAt: string | null;
+  retryOf?: string | null;
+  attemptNumber?: number;
+  failureCode?: string | null;
+  failureMessage?: string | null;
+  startedAt?: string | null;
+  completedAt?: string | null;
   createdAt: string;
+
+  // Analysis doc properties
+  attempt_id?: number;
+  order_id?: string;
+  customer_email?: string | null;
+  total?: number | null;
+  currency?: string | null;
+  error?: string | null;
+  error_code?: string | null;
+  can_retry?: boolean;
 }
 
 /**

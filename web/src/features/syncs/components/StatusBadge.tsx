@@ -22,6 +22,11 @@ export function StatusBadge({ status }: StatusBadgeProps): React.JSX.Element {
       text: '#065F46',
       label: 'Success',
     },
+    succeeded: {
+      bg: '#D1FAE5',
+      text: '#065F46',
+      label: 'Success',
+    },
     failed: {
       bg: '#FEE2E2',
       text: '#991B1B',

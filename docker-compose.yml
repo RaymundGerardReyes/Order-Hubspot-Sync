@@ -1,72 +1,36 @@
 version: '3.8'
 
 services:
-  receiver:
+  api:
     build:
       context: ./receiver
       dockerfile: Dockerfile
     ports:
-      - "3000:3000"
+      - "3001:3001"
     environment:
       - NODE_ENV=production
+      - PORT=3001
+      - DATABASE_URL=file:/app/data/order-sync.sqlite
       - WEBHOOK_SECRET=${WEBHOOK_SECRET}
-      - INTERNAL_TOKEN=${INTERNAL_TOKEN}
-      - BACKEND_URL=http://backend:8000
-      - RECEIVER_PORT=3000
-    depends_on:
-      - backend
-
-  backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    ports:
-      - "8000:8000"
-    environment:
-      - APP_NAME=OrderHubspotSync
-      - APP_ENV=production
-      - APP_KEY=${APP_KEY}
-      - APP_DEBUG=false
-      - APP_URL=http://localhost:8000
-      - DB_CONNECTION=sqlite
-      - DB_DATABASE=/var/www/html/database/database.sqlite
-      - QUEUE_CONNECTION=database
-      - INTERNAL_TOKEN=${INTERNAL_TOKEN}
       - HUBSPOT_ACCESS_TOKEN=${HUBSPOT_ACCESS_TOKEN}
-      - HUBSPOT_PIPELINE_ID=${HUBSPOT_PIPELINE_ID:-default}
-      - HUBSPOT_STAGE_ID=${HUBSPOT_STAGE_ID:-closedwon}
+      - HUBSPOT_PIPELINE_ID=${HUBSPOT_PIPELINE_ID}
+      - HUBSPOT_DEAL_STAGE_ID=${HUBSPOT_DEAL_STAGE_ID}
+      - HUBSPOT_ORDER_ID_PROPERTY=${HUBSPOT_ORDER_ID_PROPERTY:-external_order_id}
+      - HUBSPOT_REQUEST_TIMEOUT_MS=${HUBSPOT_REQUEST_TIMEOUT_MS:-10000}
+      - HUBSPOT_MAX_ATTEMPTS=${HUBSPOT_MAX_ATTEMPTS:-4}
     volumes:
-      - backend-db:/var/www/html/database
-
-  worker:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    command: php artisan queue:work --tries=3 --timeout=90
-    environment:
-      - APP_NAME=OrderHubspotSync
-      - APP_ENV=production
-      - APP_KEY=${APP_KEY}
-      - DB_CONNECTION=sqlite
-      - DB_DATABASE=/var/www/html/database/database.sqlite
-      - QUEUE_CONNECTION=database
-      - INTERNAL_TOKEN=${INTERNAL_TOKEN}
-      - HUBSPOT_ACCESS_TOKEN=${HUBSPOT_ACCESS_TOKEN}
-    volumes:
-      - backend-db:/var/www/html/database
-    depends_on:
-      - backend
+      - sqlite-data:/app/data
 
   web:
     build:
       context: ./web
       dockerfile: Dockerfile
     ports:
-      - "3001:3000"
+      - "3000:3000"
     environment:
-      - NEXT_PUBLIC_API_URL=http://localhost:8000/api
+      - NEXT_PUBLIC_API_BASE_URL=http://localhost:3001
     depends_on:
-      - backend
+      - api
 
 volumes:
-  backend-db:
+  sqlite-data:
