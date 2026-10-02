@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.5.0] - 2026-10-03
+
+### Added
+- Fastify webhook receiver service (Language A) with raw-body preservation.
+- Timing-safe HMAC-SHA256 signature verification in `hmac.ts`.
+- Zod order validation schema in `schema.ts`.
+- Forwarding client with `X-Internal-Token` in `forward.ts`.
+- `VerifyInternalToken` middleware and `InternalOrderController` on Laravel backend.
+- Unit test suites for HMAC verification and payload validation.
+
 ## [v0.4.0] - 2026-10-03
 
 ### Added
