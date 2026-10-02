@@ -20,6 +20,8 @@ class SyncAttempt extends Model
         'id',
         'order_id',
         'status',
+        'hubspot_deal_id',
+        'hubspot_contact_id',
         'retry_of',
         'attempt_number',
         'failure_code',

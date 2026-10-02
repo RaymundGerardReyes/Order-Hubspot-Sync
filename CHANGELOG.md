@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.10.0] - 2026-10-03
+
+### Added
+- Complete backend testing modules across Unit, Integration, E2E, and Regression suites per `TESTING_MODULES.md`.
+- Test builders and fakes: `OrderPayloadBuilder`, `SyncAttemptBuilder`, `InteractsWithInternalToken`, and `FakeHubspot`.
+- Real HubSpot API fixtures for contacts, deals, and pagination in `tests/Support/Fixtures/hubspot/`.
+- Concrete SQLite/PostgreSQL migrations for `orders` and `sync_attempts` tables (Req 26).
+- Contact upsert logic (`PATCH crm/v3/objects/contacts/{id}`) in `HubspotGateway` when contact is found by email (Req 23).
+- HubSpot IDs (`hubspot_deal_id`, `hubspot_contact_id`) storage on `sync_attempts` and exposure via `SyncAttemptResource` (Req 26 & 27).
+- Exact Stage 2 candidate brief sample payload compatibility across receiver Zod schema, backend FormRequest, and DTOs (`event`, `order_id`, `created_at`, `customer.first_name`, `customer.last_name`, `customer.phone`, `items.*.qty`, `items.*.price`, `currency`, `total`).
+- n8n workflow error handling trigger and notification workflow for bonus requirement.
+- Web package and TypeScript configuration (`package.json`, `tsconfig.json`, `next.config.js`).
+
+### Removed
+- Superseded legacy tests in `backend/tests/Feature/` and duplicate `backend/tests/Unit/DealMapperTest.php`.
+
 ## [v0.9.0] - 2026-10-03
 
 ### Added

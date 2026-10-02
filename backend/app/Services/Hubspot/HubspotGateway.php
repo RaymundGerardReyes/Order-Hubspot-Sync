@@ -37,7 +37,12 @@ class HubspotGateway
         $searchResult = $this->client->request('POST', 'crm/v3/objects/contacts/search', $searchPayload);
 
         if (! empty($searchResult['results'][0]['id'])) {
-            return (string) $searchResult['results'][0]['id'];
+            $contactId = (string) $searchResult['results'][0]['id'];
+            // Update existing contact properties to fulfill Req 23: create or update it
+            $this->client->request('PATCH', "crm/v3/objects/contacts/{$contactId}", [
+                'properties' => $contactProperties,
+            ]);
+            return $contactId;
         }
 
         // Create contact

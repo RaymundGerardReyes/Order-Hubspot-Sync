@@ -14,7 +14,7 @@ class DealMapper
      */
     public function toDealProperties(OrderData $orderData, string $pipeline = 'default', string $dealstage = 'closedwon'): array
     {
-        // HubSpot closedate requires midnight UTC in milliseconds or ISO8601 UTC
+        // HubSpot closedate requires midnight UTC in ISO8601 UTC
         $closeDateUtc = Carbon::parse($orderData->createdAt)->utc()->startOfDay()->toIso8601String();
 
         return [
@@ -29,20 +29,22 @@ class DealMapper
     }
 
     /**
-     * Map OrderData to HubSpot Contact properties.
+     * Map OrderData to HubSpot Contact properties (including optional phone).
      *
      * @return array<string, mixed>
      */
     public function toContactProperties(OrderData $orderData): array
     {
-        $nameParts = explode(' ', trim($orderData->customerName), 2);
-        $firstName = $nameParts[0] ?? '';
-        $lastName = $nameParts[1] ?? '';
-
-        return [
+        $properties = [
             'email' => $orderData->customerEmail,
-            'firstname' => $firstName,
-            'lastname' => $lastName,
+            'firstname' => (string) ($orderData->customerFirstName ?? ''),
+            'lastname' => (string) ($orderData->customerLastName ?? ''),
         ];
+
+        if (! empty($orderData->customerPhone)) {
+            $properties['phone'] = $orderData->customerPhone;
+        }
+
+        return $properties;
     }
 }

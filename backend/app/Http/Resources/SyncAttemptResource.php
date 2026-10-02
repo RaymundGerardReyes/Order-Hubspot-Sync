@@ -18,6 +18,8 @@ class SyncAttemptResource extends JsonResource
             'id' => (string) $this->id,
             'orderId' => (string) $this->order_id,
             'status' => $this->status instanceof \BackedEnum ? $this->status->value : (string) $this->status,
+            'hubspotDealId' => $this->hubspot_deal_id ? (string) $this->hubspot_deal_id : null,
+            'hubspotContactId' => $this->hubspot_contact_id ? (string) $this->hubspot_contact_id : null,
             'retryOf' => $this->retry_of ? (string) $this->retry_of : null,
             'attemptNumber' => (int) $this->attempt_number,
             'failureCode' => $this->failure_code ? (string) $this->failure_code : null,

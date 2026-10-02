@@ -1,5 +1,5 @@
 {
-  "name": "Order to HubSpot Sync",
+  "name": "Order to HubSpot Sync with Error Handling",
   "nodes": [
     {
       "parameters": {
@@ -8,48 +8,108 @@
         "responseMode": "responseNode",
         "options": {}
       },
-      "id": "webhook-trigger",
-      "name": "Webhook Trigger",
+      "id": "node-webhook-ingress",
+      "name": "Order Webhook Trigger",
       "type": "n8n-nodes-base.webhook",
-      "typeVersion": 1,
-      "position": [240, 300]
+      "typeVersion": 2,
+      "position": [200, 300],
+      "webhookId": "order-sync-webhook"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $json.body || $json;\n\n// Support both brief sample payload and camelCase aliases\nconst orderId = body.order_id || body.orderId;\nconst customer = body.customer || {};\nconst email = customer.email || body.customer_email;\n\nlet firstName = customer.first_name || '';\nlet lastName = customer.last_name || '';\nlet fullName = customer.name || body.customer_name || '';\n\nif (!firstName && !lastName && fullName) {\n  const parts = fullName.split(' ');\n  firstName = parts[0] || '';\n  lastName = parts.slice(1).join(' ') || '';\n} else if (!fullName && (firstName || lastName)) {\n  fullName = `${firstName} ${lastName}`.trim();\n}\n\nconst total = body.total !== undefined ? body.total : (body.total_amount !== undefined ? body.total_amount : body.totalAmount || 0);\nconst currency = body.currency || 'USD';\nconst phone = customer.phone || '';\nconst createdAt = body.created_at || body.createdAt || new Date().toISOString();\n\nreturn [{\n  json: {\n    orderId,\n    email,\n    firstName,\n    lastName,\n    fullName,\n    phone,\n    total: String(total),\n    currency,\n    createdAt\n  }\n}];"
+      },
+      "id": "node-normalize-payload",
+      "name": "Normalize Order Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [420, 300]
     },
     {
       "parameters": {
         "resource": "contact",
         "operation": "upsert",
-        "email": "={{ $json.body.customer.email }}",
+        "email": "={{ $json.email }}",
         "additionalFields": {
-          "firstName": "={{ $json.body.customer.name.split(' ')[0] }}",
-          "lastName": "={{ $json.body.customer.name.split(' ').slice(1).join(' ') }}"
+          "firstName": "={{ $json.firstName }}",
+          "lastName": "={{ $json.lastName }}",
+          "phone": "={{ $json.phone }}"
         }
       },
-      "id": "hubspot-contact",
+      "id": "node-hubspot-contact",
       "name": "HubSpot Upsert Contact",
       "type": "n8n-nodes-base.hubspot",
       "typeVersion": 1,
-      "position": [460, 300]
+      "position": [640, 300]
     },
     {
       "parameters": {
         "resource": "deal",
         "operation": "create",
-        "dealName": "=Order #{{ $json.body.orderId }} - {{ $json.body.customer.name }}",
+        "dealName": "=Order #{{ $('Normalize Order Payload').item.json.orderId }} - {{ $('Normalize Order Payload').item.json.fullName }}",
         "stage": "closedwon",
         "pipeline": "default",
         "additionalFields": {
-          "amount": "={{ $json.body.totalAmount }}"
+          "amount": "={{ $('Normalize Order Payload').item.json.total }}",
+          "closeDate": "={{ $('Normalize Order Payload').item.json.createdAt }}"
         }
       },
-      "id": "hubspot-deal",
+      "id": "node-hubspot-deal",
       "name": "HubSpot Create Deal",
       "type": "n8n-nodes-base.hubspot",
       "typeVersion": 1,
-      "position": [680, 300]
+      "position": [860, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"status\": \"accepted\",\n  \"orderId\": \"{{ $('Normalize Order Payload').item.json.orderId }}\",\n  \"dealId\": \"{{ $json.id }}\",\n  \"contactId\": \"{{ $('HubSpot Upsert Contact').item.json.id }}\"\n}",
+        "options": {
+          "responseCode": 202
+        }
+      },
+      "id": "node-respond-webhook",
+      "name": "Respond 202 Accepted",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1080, 300]
+    },
+    {
+      "parameters": {},
+      "id": "node-error-trigger",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [200, 520]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.NOTIFICATION_WEBHOOK_URL || 'https://httpbin.org/post' }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"event\": \"sync.failed\",\n  \"workflow\": \"Order to HubSpot Sync\",\n  \"executionId\": \"{{ $execution.id }}\",\n  \"error\": \"{{ $json.execution.error.message }}\",\n  \"failedNode\": \"{{ $json.execution.lastNodeExecuted }}\",\n  \"timestamp\": \"{{ $now.toISO() }}\"\n}"
+      },
+      "id": "node-notify-failure",
+      "name": "Notify On Failure",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [440, 520]
     }
   ],
   "connections": {
-    "Webhook Trigger": {
+    "Order Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Normalize Order Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Order Payload": {
       "main": [
         [
           {
@@ -65,6 +125,28 @@
         [
           {
             "node": "HubSpot Create Deal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HubSpot Create Deal": {
+      "main": [
+        [
+          {
+            "node": "Respond 202 Accepted",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "Notify Failure",
             "type": "main",
             "index": 0
           }

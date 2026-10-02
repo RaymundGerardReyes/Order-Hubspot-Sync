@@ -50,6 +50,8 @@ class OrderSyncService
                     ]
                 );
 
+                $attempt->hubspot_deal_id = $dealId;
+                $attempt->hubspot_contact_id = $contactId;
                 $attempt->transitionTo(SyncStatus::Success);
 
                 return $createdOrder;

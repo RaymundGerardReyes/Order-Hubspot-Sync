@@ -1,0 +1,21 @@
+{
+  "total": 2,
+  "results": [
+    {
+      "id": "dl_1001",
+      "properties": {
+        "dealname": "Order ORD-1001 - Alice",
+        "amount": "150.00",
+        "dealstage": "closedwon",
+        "closedate": "2026-10-01T10:00:00Z",
+        "createdate": "2026-10-01T10:00:00Z",
+        "order_id": "ORD-1001"
+      }
+    }
+  ],
+  "paging": {
+    "next": {
+      "after": "cursor_page_2"
+    }
+  }
+}

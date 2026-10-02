@@ -34,6 +34,7 @@ export function SyncTable({ syncs, onRetry, retryingId }: SyncTableProps): React
           <tr style={{ backgroundColor: '#F9FAFB', borderBottom: '1px solid #E5E7EB' }}>
             <th style={{ padding: '12px 16px', fontWeight: 600 }}>Order ID</th>
             <th style={{ padding: '12px 16px', fontWeight: 600 }}>Status</th>
+            <th style={{ padding: '12px 16px', fontWeight: 600 }}>HubSpot Deal</th>
             <th style={{ padding: '12px 16px', fontWeight: 600 }}>Attempt #</th>
             <th style={{ padding: '12px 16px', fontWeight: 600 }}>Failure Detail</th>
             <th style={{ padding: '12px 16px', fontWeight: 600 }}>Created At</th>
@@ -48,6 +49,9 @@ export function SyncTable({ syncs, onRetry, retryingId }: SyncTableProps): React
               </td>
               <td style={{ padding: '12px 16px' }}>
                 <StatusBadge status={sync.status} />
+              </td>
+              <td style={{ padding: '12px 16px', fontFamily: 'monospace', color: sync.hubspotDealId ? '#1D4ED8' : '#9CA3AF' }}>
+                {sync.hubspotDealId ?? '-'}
               </td>
               <td style={{ padding: '12px 16px' }}>
                 {sync.attemptNumber}
