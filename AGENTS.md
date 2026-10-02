@@ -66,3 +66,18 @@
   - Prior to creating a deal, the sync engine must search for an existing deal with `external_order_id = :orderId`.
   - If found (e.g., recovery after an unrecorded crash), the existing deal is associated with the contact and reused rather than duplicated.
 
+## 9. Multi-Path Environment Resolution & Diagnostic Resilience
+- **Multi-Path Environment Resolution**:
+  - Services and CLI scripts running in subfolders (`receiver/`, `scripts/`, `exporter/`) must resolve `.env` across candidate paths (both current working directory and parent repository root).
+  - In developer mode, missing `.env` files must automatically bootstrap from `.env.example` with working local testing defaults (`WEBHOOK_SECRET=stage2_secret_key_super_secure_99`) rather than crashing immediately.
+- **HubSpot Service Key Compatibility**:
+  - All HubSpot integrations must document and support modern HubSpot Service Keys (which superseded deprecated legacy Private Apps on new developer accounts) using standard HTTP `Authorization: Bearer <token>` authentication with the 4 required CRM scopes:
+    - `crm.objects.contacts.read`
+    - `crm.objects.contacts.write`
+    - `crm.objects.deals.read`
+    - `crm.objects.deals.write`
+- **Zero-Dependency CLI Tooling & Actionable Diagnostics**:
+  - Standalone utility and mock scripts (such as `scripts/mock-webhook.ts`) must rely exclusively on Node.js built-ins or zero external dependencies so they execute reliably across all working directories.
+  - Connection failures (`ECONNREFUSED`) must be trapped and display actionable instructions directing the developer to start the receiver service first (`cd receiver && npm run dev`).
+
+
