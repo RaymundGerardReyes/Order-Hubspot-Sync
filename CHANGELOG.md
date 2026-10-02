@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.3.0] - 2026-10-03
+
+### Added
+- `HubspotClient` with exponential backoff and Retry-After header support.
+- `UpstreamUnavailableException` (retryable 429/5xx) and `UpstreamRejectedException` (permanent 4xx).
+- `DealMapper` pure mapping service for HubSpot Deal and Contact properties.
+- `HubspotGateway` for contact lookup/creation, deal creation, and association.
+- `OrderSyncService` orchestrating end-to-end sync in an atomic database transaction.
+- `DealMapperTest` unit tests verifying mapping accuracy.
+
 ## [v0.2.0] - 2026-10-03
 
 ### Added
