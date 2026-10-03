@@ -138,3 +138,19 @@ Launching a Python runner in internal mode is intended only for debugging and is
 * **Status**: Harmless informational notice.
 * **Why it appears**: In modern n8n (v2.x), n8n checks at boot for an optional Python 3 environment. The official Alpine base container intentionally does not bundle Python 3 to maintain a lightweight image.
 * **Does it affect our order pipeline?**: **No**. The Stage 2 order integration pipeline uses **JavaScript** in the Code node (which registered successfully as `JS Task Runner`). Python is not required, and n8n continues running normally on `http://localhost:5678`.
+
+### Q: Why do logs mention `N8N_RUNNERS_MODE -> Internal task runner mode is deprecated`?
+```text
+N8N_RUNNERS_MODE -> Internal task runner mode is deprecated and will be removed in a future version. For isolation and scaling, run the task runner launcher as a separate process, set this variable to external...
+```
+* **Status**: Informational architecture recommendation.
+* **Why it appears**: For large-scale multi-tenant production clusters running thousands of workflows concurrently, n8n recommends running external runner sidecar containers (`external` mode).
+* **For local development & single-container evaluation**: Single-container `internal` runner mode is standard, fully supported, and requires zero extra sidecars. All JavaScript transformations in our order pipeline execute with zero issues.
+
+### Q: How were the other deprecation warnings addressed?
+`docker-compose.yml` explicitly defines:
+* `N8N_UNVERIFIED_PACKAGES_ENABLED=true`
+* `N8N_RUNNERS_TASK_TIMEOUT=300`
+* `N8N_COMPRESSION_NODE_MAX_DECOMPRESSED_SIZE_BYTES=2147483648`
+* `N8N_COMPRESSION_NODE_MAX_ZIP_ENTRIES=5000`
+This keeps future defaults locked to expected limits and silences startup deprecation notices.

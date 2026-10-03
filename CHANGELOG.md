@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.1.13] - 2026-10-03
+
+### Changed
+- **n8n Container Deprecation Hardening (`docker-compose.yml`, `n8n/README.md`)**: Configured explicit environment variables for n8n deprecation thresholds (`N8N_UNVERIFIED_PACKAGES_ENABLED=true`, `N8N_RUNNERS_TASK_TIMEOUT=300`, `N8N_COMPRESSION_NODE_MAX_DECOMPRESSED_SIZE_BYTES=2147483648`, `N8N_COMPRESSION_NODE_MAX_ZIP_ENTRIES=5000`) in Docker Compose to eliminate startup warning logs. Added detailed FAQ coverage in `n8n/README.md` for task runner internal mode and step-by-step local workflow onboarding.
+
 ## [v1.1.12] - 2026-10-03
 
 ### Changed
