@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.1.11] - 2026-10-03
+
+### Fixed
+- **Docker Compose Port Conflict Resilience (`docker-compose.yml`, `.env.example`)**: Added configurable environment variable overrides (`${WEB_PORT:-3000}`, `${API_PORT:-3001}`, `${N8N_PORT:-5678}`) for all exposed container ports, preventing Docker daemon port collisions when host development servers (such as local `next dev` on port 3000) are already active.
+
 ## [v1.1.10] - 2026-10-03
 
 ### Fixed
