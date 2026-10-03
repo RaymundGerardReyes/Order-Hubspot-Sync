@@ -102,5 +102,12 @@
   - Data tables (`SyncTable`) must implement dual responsiveness: `@container` queries for layout containment and `@media (max-width: 768px)` for viewport-level card transformations.
   - On mobile, table rows must transform into discrete cards displaying key-value pairs with `data-label` pseudo-elements, wrapping long strings with `word-break: break-word`, and providing 40px+ touch targets for action buttons.
 
+## 12. Windows File-Lock Resilience & Autonomous Exporter Redirection
+- **Autonomous File-Lock Fallback**:
+  - Exporter CLI scripts writing to CSV or report files (such as `exporter/export-deals.php`) must gracefully handle Windows exclusive locks caused by Microsoft Excel or spreadsheet viewers.
+  - If `@fopen($output, 'w')` fails because the target file already exists and is locked, the script must NOT terminate abruptly. Instead, it must print an informative notice and automatically redirect output to an incremental timestamped path (`_YYYYMMDD_HHMMSS.csv`).
+  - This guarantees accounting and reporting workflows remain completely autonomous and resilient without requiring manual process termination or command re-runs.
+
+
 
 
