@@ -1,11 +1,12 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { runMigrations } from '../../src/db/migrations';
-import { getDb } from '../../src/db/connection';
+import { closeDb, getDb } from '../../src/db/connection';
 import { attemptRepo, orderRepo } from '../../src/db/repositories';
 import validOrder from '../fixtures/orders/valid-order.json';
 
 describe('SQLite Repositories Unit Tests', () => {
   beforeEach(() => {
+    closeDb();
     process.env.DATABASE_URL = 'file:./data/test-repos.sqlite';
     runMigrations();
     const db = getDb();
@@ -88,5 +89,9 @@ describe('SQLite Repositories Unit Tests', () => {
     expect(third.attempt_number).toBe(3);
     expect(third.retry_count).toBe(2);
     expect(third.retry_of).toBe(second.id);
+  });
+
+  afterAll(() => {
+    closeDb();
   });
 });
