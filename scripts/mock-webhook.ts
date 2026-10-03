@@ -71,7 +71,10 @@ async function sendMockWebhook(): Promise<void> {
   const secret = process.env.WEBHOOK_SECRET || 'stage2_secret_key_super_secure_99';
   const targetUrl = process.env.API_URL || 'http://localhost:3001/webhooks/orders';
 
-  const orderId = `ORD-${Date.now().toString(36).toUpperCase()}`;
+  const cliArg = process.argv.slice(2).find((arg) => !arg.startsWith('--'))
+    || process.argv.slice(2).find((arg) => arg.startsWith('--order-id='))?.split('=')[1]
+    || process.argv.slice(2).find((arg) => arg.startsWith('--orderId='))?.split('=')[1];
+  const orderId = cliArg || process.env.ORDER_ID || `ORD-${Date.now().toString(36).toUpperCase()}`;
 
   // Canonical Stage 2 brief payload format
   const payload: MockOrderPayload = {
