@@ -80,16 +80,4 @@
   - Standalone utility and mock scripts (such as `scripts/mock-webhook.ts`) must rely exclusively on Node.js built-ins or zero external dependencies so they execute reliably across all working directories.
   - Connection failures (`ECONNREFUSED`) must be trapped and display actionable instructions directing the developer to start the receiver service first (`cd receiver && npm run dev`).
 
-## 10. Design System & Modern Responsive UI Patterns (web/src)
-- **Centralized Design System**:
-  - All styling for the Next.js monitoring dashboard must use CSS custom properties defined in `web/src/app/globals.css` (tokens for colors, spacing, typography, borders, shadows, and keyframes) rather than ad-hoc inline styles.
-  - Zero-layout-shift font rendering must be applied using `next/font/google` (`Inter`) with CSS variable injection.
-- **Container Queries for Data Tables**:
-  - Tabular data representations (`SyncTable`) must use CSS Container Queries (`@container (width < 640px)`) to transform into responsive stacked card layouts without duplicate DOM structures, utilizing `data-label` attribute injection for accessible field labeling.
-- **Accessible Visual States & Loading UX**:
-  - Live polling indicators must visually display activity with subtle pulse animations.
-  - Initial table loading states must render shimmer skeleton rows to prevent layout shift.
-  - Action buttons (`RetryButton`) must use SVG icons, animated inline CSS spinners during flight, and proper accessibility attributes (`aria-label`, `aria-busy`).
-
-
 

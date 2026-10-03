@@ -1,4 +1,5 @@
 import fastify, { FastifyInstance } from 'fastify';
+import cors from '@fastify/cors';
 import type { ApiConfig } from './config.js';
 import { verifySignature } from './hmac.js';
 import { OrderPayloadSchema } from './schema.js';
@@ -16,6 +17,20 @@ export interface ServerOptions {
 export function buildServer(options: ServerOptions): FastifyInstance {
   const { config } = options;
   const app = fastify({ logger: true });
+
+  // Enable CORS for frontend dashboard (port 3000) and external clients
+  app.register(cors, {
+    origin: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+    allowedHeaders: [
+      'Content-Type',
+      'Authorization',
+      'Accept',
+      'X-Webhook-Signature',
+      'X-Signature',
+    ],
+    credentials: true,
+  });
 
   // Run SQLite migrations on startup
   runMigrations();

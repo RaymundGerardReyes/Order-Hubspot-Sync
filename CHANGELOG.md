@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.1.1] - 2026-10-03
+
+### Fixed
+- **CORS Preflight & Cross-Origin Requests**: Installed `@fastify/cors@9` and configured preflight `OPTIONS` handling with origin reflection, standard methods, headers, and credentials in `receiver/src/server.ts`, preventing browser `net::ERR_FAILED` CORS blocks from `http://localhost:3000`.
+- **Next.js API Rewrites**: Added proxy rewrites in `web/next.config.js` (`/api/:path*` -> `http://localhost:3001/api/:path*`) for seamless local routing.
+- **Favicon 404 Resolution**: Created `web/src/app/icon.svg` and `web/public/favicon.ico` resolving browser `favicon.ico: 404 (Not Found)` errors.
+- **Mobile Viewport & Touch Ergonomics**: Exported `viewport` metadata (`width=device-width, initialScale=1`) in `web/src/app/layout.tsx` for native responsive scaling on mobile browsers.
+- **Mobile Card Layout Transformation**: Re-engineered `web/src/app/globals.css` with `@media (max-width: 768px)` and `@container (max-width: 680px)` card transformations, touch-friendly 40px+ tap targets, fluid `clamp()` spacing/typography, and `overflow-x: hidden` bounce prevention.
+- **Next.js Production Build Validation**: Fixed nullish coalescing on `target.attemptNumber` in `web/tests/mocks/handlers.ts`, achieving 100% green Next.js 15 production build.
+- **Automated CORS Test Coverage**: Added dedicated integration test in `receiver/test/integration/webhook-route.test.ts` verifying `OPTIONS` (204) and `GET` (200) `Access-Control-Allow-Origin` headers.
+
 ## [v1.1.0] - 2026-10-03
 
 ### Added

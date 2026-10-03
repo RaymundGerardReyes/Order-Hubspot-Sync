@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Inter } from 'next/font/google';
 import React from 'react';
 import './globals.css';
@@ -12,6 +12,16 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: 'Order–HubSpot Sync Dashboard',
   description: 'Real-time order synchronization ledger and monitoring dashboard',
+  icons: {
+    icon: '/icon.svg',
+  },
+};
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 5,
+  themeColor: '#2563EB',
 };
 
 export interface RootLayoutProps {

@@ -172,4 +172,34 @@ describe('Webhook Route & API Integration Tests', () => {
     expect(body.status).toBe('accepted');
     expect(body.orderId).toBe(validOrder.orderId);
   });
+
+  it('responds with CORS headers for preflight OPTIONS and cross-origin GET requests', async () => {
+    const app = buildTestApp();
+
+    const preflight = await app.inject({
+      method: 'OPTIONS',
+      url: '/api/sync-attempts?limit=50',
+      headers: {
+        origin: 'http://localhost:3000',
+        'access-control-request-method': 'GET',
+        'access-control-request-headers': 'content-type, accept',
+      },
+    });
+
+    expect(preflight.statusCode).toBe(204);
+    expect(preflight.headers['access-control-allow-origin']).toBe('http://localhost:3000');
+    expect(preflight.headers['access-control-allow-methods']).toContain('GET');
+
+    const getRes = await app.inject({
+      method: 'GET',
+      url: '/api/sync-attempts?limit=50',
+      headers: {
+        origin: 'http://localhost:3000',
+      },
+    });
+
+    expect(getRes.statusCode).toBe(200);
+    expect(getRes.headers['access-control-allow-origin']).toBe('http://localhost:3000');
+  });
 });
+
