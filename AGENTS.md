@@ -80,4 +80,27 @@
   - Standalone utility and mock scripts (such as `scripts/mock-webhook.ts`) must rely exclusively on Node.js built-ins or zero external dependencies so they execute reliably across all working directories.
   - Connection failures (`ECONNREFUSED`) must be trapped and display actionable instructions directing the developer to start the receiver service first (`cd receiver && npm run dev`).
 
+## 10. Design System & Modern Responsive UI Patterns (web/src)
+- **Centralized Design System**:
+  - All styling for the Next.js monitoring dashboard must use CSS custom properties defined in `web/src/app/globals.css` (tokens for colors, spacing, typography, borders, shadows, and keyframes) rather than ad-hoc inline styles.
+  - Zero-layout-shift font rendering must be applied using `next/font/google` (`Inter`) with CSS variable injection.
+- **Container Queries for Data Tables**:
+  - Tabular data representations (`SyncTable`) must use CSS Container Queries (`@container synctable (max-width: 680px)`) to transform into responsive stacked card layouts without duplicate DOM structures, utilizing `data-label` attribute injection for accessible field labeling.
+- **Accessible Visual States & Loading UX**:
+  - Live polling indicators must visually display activity with subtle pulse animations.
+  - Initial table loading states must render shimmer skeleton rows to prevent layout shift.
+  - Action buttons (`RetryButton`) must use SVG icons, animated inline CSS spinners during flight, and proper accessibility attributes (`aria-label`, `aria-busy`).
+
+## 11. Cross-Origin Protocol, Viewport Metadata & Dual Responsive Architecture
+- **CORS Preflight Configuration**:
+  - The API service (`receiver/`) must enable `@fastify/cors` (v9 for Fastify 4.x) with origin reflection (`origin: true`), credentials, and allowlisted headers (`Content-Type`, `Authorization`, `Accept`, `X-Webhook-Signature`, `X-Signature`) so browser dashboards on distinct ports (e.g., Next.js on port 3000) can interact without preflight CORS rejection.
+  - Next.js development configurations (`web/next.config.js`) should provide complementary proxy rewrites (`/api/:path*` to the API port) for defense-in-depth.
+- **App Router Viewport & Icon Standards**:
+  - All Next.js App Router layouts (`web/src/app/layout.tsx`) must explicitly export `viewport: Viewport` with `width: 'device-width', initialScale: 1` to guarantee proper mobile device scaling.
+  - Brand icons must be provided via `src/app/icon.svg` and `public/favicon.ico` to eliminate browser 404 noise.
+- **Dual Container & Media Query Responsive Tables**:
+  - Data tables (`SyncTable`) must implement dual responsiveness: `@container` queries for layout containment and `@media (max-width: 768px)` for viewport-level card transformations.
+  - On mobile, table rows must transform into discrete cards displaying key-value pairs with `data-label` pseudo-elements, wrapping long strings with `word-break: break-word`, and providing 40px+ touch targets for action buttons.
+
+
 
