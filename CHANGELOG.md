@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.1.3] - 2026-10-03
+
+### Fixed
+- **Automated Fallback on Locked Exporter Files (`export-deals.php`)**: When the requested export target is locked by an external spreadsheet application (such as Microsoft Excel on Windows), the script now automatically redirects output to a timestamped file (`_YYYYMMDD_HHMMSS.csv`) instead of aborting. This ensures accounting workflows never fail due to open files.
+
 ## [v1.1.2] - 2026-10-03
 
 ### Fixed

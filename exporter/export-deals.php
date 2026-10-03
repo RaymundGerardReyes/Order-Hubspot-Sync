@@ -153,20 +153,27 @@ if ($outputDir && $outputDir !== '.' && !is_dir($outputDir)) {
 
 $fp = @fopen($output, 'w');
 if ($fp === false) {
-    fwrite(STDERR, "Error: Cannot open output file for writing: {$output}\n");
     if (file_exists($output)) {
-        fwrite(STDERR, "Reason: The file is currently locked by another application (e.g. Microsoft Excel).\n");
-        fwrite(STDERR, "        On Windows, open spreadsheet applications place an exclusive lock on CSV files.\n\n");
-        fwrite(STDERR, "Solution:\n");
-        fwrite(STDERR, "  1. Close '{$output}' in Microsoft Excel or your CSV editor, OR\n");
-        $altOutput = preg_replace('/\.csv$/i', '_' . date('Ymd_His') . '.csv', $output);
-        fwrite(STDERR, "  2. Specify a different output filename, for example:\n");
-        fwrite(STDERR, "     php export-deals.php --days={$days} --output={$altOutput}\n\n");
-    } else {
-        $err = error_get_last();
-        if ($err && isset($err['message'])) {
-            fwrite(STDERR, "Details: {$err['message']}\n\n");
+        // Target file exists and is locked by an external application (e.g. Microsoft Excel on Windows).
+        // Automatically fallback to a timestamped file so the export never crashes or fails!
+        $fallbackOutput = preg_replace('/\.csv$/i', '_' . date('Ymd_His') . '.csv', $output);
+        if ($fallbackOutput === $output) {
+            $fallbackOutput = $output . '_' . date('Ymd_His') . '.csv';
         }
+
+        fwrite(STDERR, "[Notice] Target '{$output}' is currently locked by another application (e.g., Microsoft Excel).\n");
+        fwrite(STDERR, "[Notice] Automatically redirecting output to: {$fallbackOutput}\n\n");
+
+        $output = $fallbackOutput;
+        $fp     = @fopen($output, 'w');
+    }
+}
+
+if ($fp === false) {
+    fwrite(STDERR, "Error: Cannot open output file for writing: {$output}\n");
+    $err = error_get_last();
+    if ($err && isset($err['message'])) {
+        fwrite(STDERR, "Details: {$err['message']}\n");
     }
     exit(1);
 }
