@@ -108,6 +108,18 @@
   - If `@fopen($output, 'w')` fails because the target file already exists and is locked, the script must NOT terminate abruptly. Instead, it must print an informative notice and automatically redirect output to an incremental timestamped path (`_YYYYMMDD_HHMMSS.csv`).
   - This guarantees accounting and reporting workflows remain completely autonomous and resilient without requiring manual process termination or command re-runs.
 
+## 13. Attempt Lineage, Sequential Numbering & Upstream Error Sanitization
+- **Attempt Sequence Invariant**:
+  - Every sync attempt record in the database (`sync_attempts`) must compute its `attempt_number` by counting existing prior attempts for the target `order_id` (`attempt_number = priorCount + 1`).
+  - Retried attempts (`trigger = 'manual_retry'`) must explicitly reference the immediate predecessor attempt via `retry_of = priorLastId`, allowing the dashboard to render `#2 (retry)` and audit attempt lineage.
+- **Upstream Error Normalization**:
+  - The HTTP client and error handlers must parse JSON response bodies returned by third-party APIs (e.g., HubSpot 400/401/429/500).
+  - The human-readable `message` or `error` string must be extracted into `error_message`, preventing raw JSON blobs, correlation IDs, or redundant HTTP status prefixes from polluting operational dashboards.
 
-
-
+## 14. CRM Property Discovery & Resilient Fallback Architecture
+- **Graceful Custom Property Fallback**:
+  - When syncing deals to HubSpot using a custom identifier (e.g., `external_order_id`), the engine must handle developer accounts where custom properties are not yet provisioned (`PROPERTY_DOESNT_EXIST`).
+  - The engine must first attempt search and creation with the custom property; if rejected, it must autonomously fall back to standard CRM properties (matching by `dealname` and storing the identifier in `description`).
+- **Memory Leak Protection in Dashboard Polling**:
+  - Frontend polling hooks (`useSyncs`) must track component mount state (`isMountedRef`) to prevent updating React state after unmount.
+  - Backend HTTP clients with timeout abort controllers must always invoke `clearTimeout` within a `finally` block to prevent timer leakages under high concurrency.
