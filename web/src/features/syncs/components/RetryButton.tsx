@@ -13,24 +13,41 @@ export function RetryButton({
   disabled = false,
   isLoading = false,
 }: RetryButtonProps): React.JSX.Element {
+  const isDisabled = disabled || isLoading;
+
   return (
     <button
       type="button"
+      className="btn btn-primary-sm"
       onClick={() => onRetry(attemptId)}
-      disabled={disabled || isLoading}
-      style={{
-        padding: '4px 10px',
-        fontSize: '0.8rem',
-        fontWeight: 500,
-        color: '#FFFFFF',
-        backgroundColor: disabled || isLoading ? '#9CA3AF' : '#2563EB',
-        border: 'none',
-        borderRadius: '4px',
-        cursor: disabled || isLoading ? 'not-allowed' : 'pointer',
-        transition: 'background-color 0.2s',
-      }}
+      disabled={isDisabled}
+      aria-label={isLoading ? `Retrying attempt ${attemptId}` : `Retry attempt ${attemptId}`}
+      aria-busy={isLoading}
     >
-      {isLoading ? 'Retrying...' : 'Retry'}
+      {isLoading ? (
+        <>
+          <span className="spinner" aria-hidden="true" />
+          Retrying…
+        </>
+      ) : (
+        <>
+          <svg
+            aria-hidden="true"
+            width="11"
+            height="11"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <polyline points="1 4 1 10 7 10" />
+            <path d="M3.51 15a9 9 0 102.13-9.36L1 10" />
+          </svg>
+          Retry
+        </>
+      )}
     </button>
   );
 }

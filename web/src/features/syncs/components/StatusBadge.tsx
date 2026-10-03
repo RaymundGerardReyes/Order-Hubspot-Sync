@@ -5,55 +5,36 @@ export interface StatusBadgeProps {
   status: SyncStatus;
 }
 
-export function StatusBadge({ status }: StatusBadgeProps): React.JSX.Element {
-  const badgeStyles: Record<SyncStatus, { bg: string; text: string; label: string }> = {
-    pending: {
-      bg: '#FEF3C7',
-      text: '#92400E',
-      label: 'PENDING',
-    },
-    processing: {
-      bg: '#DBEAFE',
-      text: '#1E40AF',
-      label: 'PROCESSING',
-    },
-    success: {
-      bg: '#D1FAE5',
-      text: '#065F46',
-      label: 'SUCCESS',
-    },
-    succeeded: {
-      bg: '#D1FAE5',
-      text: '#065F46',
-      label: 'SUCCESS',
-    },
-    failed: {
-      bg: '#FEE2E2',
-      text: '#991B1B',
-      label: 'FAILED',
-    },
-  };
+const statusConfig: Record<SyncStatus, { className: string; label: string }> = {
+  pending: {
+    className: 'pending',
+    label: 'PENDING',
+  },
+  processing: {
+    className: 'processing',
+    label: 'PROCESSING',
+  },
+  success: {
+    className: 'success',
+    label: 'SUCCESS',
+  },
+  succeeded: {
+    className: 'success',
+    label: 'SUCCESS',
+  },
+  failed: {
+    className: 'failed',
+    label: 'FAILED',
+  },
+};
 
-  const style = badgeStyles[status] ?? {
-    bg: '#F3F4F6',
-    text: '#374151',
-    label: status,
-  };
+export function StatusBadge({ status }: StatusBadgeProps): React.JSX.Element {
+  const config = statusConfig[status] ?? { className: '', label: status.toUpperCase() };
 
   return (
-    <span
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        padding: '2px 8px',
-        borderRadius: '9999px',
-        fontSize: '0.75rem',
-        fontWeight: 600,
-        backgroundColor: style.bg,
-        color: style.text,
-      }}
-    >
-      {style.label}
+    <span className={`status-badge ${config.className}`} aria-label={`Status: ${config.label}`}>
+      <span className="status-badge-dot" aria-hidden="true" />
+      {config.label}
     </span>
   );
 }

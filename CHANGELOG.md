@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.1.0] - 2026-10-03
+
+### Added
+- Introduced global CSS design system (`web/src/app/globals.css`) with CSS custom properties for brand colours, semantic palette, spacing scale, typography, border radii, and shadows — replacing ad-hoc inline style objects.
+- Added Google Inter font via `next/font/google` with CSS variable injection and `swap` display strategy for zero layout-shift text loading.
+- Polished `SyncDashboard`: branded header with SVG icon, live-polling pulse indicator, SVG-icon refresh button, and structured alert banners with left-border accent and inline icon.
+- Polished `SyncTable`: sticky column headers, responsive container-query stacked card layout at `< 640 px`, shimmer skeleton rows during initial load, rich empty-state panel with SVG illustration, record count badge, and row hover highlight.
+- Polished `StatusBadge`: animated pulsing dot indicator per status, coloured border ring, and uppercase letter-spaced label using CSS class variants.
+- Polished `RetryButton`: CSS spinner animation in loading state, SVG redo icon in idle state, `aria-busy` attribute, and `btn btn-primary-sm` design-system class.
+- Global CSS `@keyframes pulse`, `spin`, and `shimmer` animations with no JavaScript cost.
+- Responsive table stacked layout following `responsive-table` modern-web-guidance pattern using `@container` queries and `data-label` pseudo-element injection.
+
 ## [v1.0.3] - 2026-10-03
 
 ### Added

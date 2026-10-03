@@ -100,4 +100,8 @@ export const handlers = [
       timestamp: new Date().toISOString(),
     });
   }),
+  // Fallback 404 route for client error handling tests
+  http.get('*/api/unknown-route', () => {
+    return HttpResponse.json({ message: 'Route not found' }, { status: 404 });
+  }),
 ];
