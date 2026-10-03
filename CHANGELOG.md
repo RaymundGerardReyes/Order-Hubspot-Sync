@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.1.2] - 2026-10-03
+
+### Fixed
+- **PHP Deal Exporter File Lock Diagnostics (`export-deals.php`)**: Added graceful handling for Windows exclusive file locks (e.g. when `deals.csv` is actively open in Microsoft Excel). The script suppresses the raw PHP `Resource temporarily unavailable` warning and outputs clear instructions to either close the spreadsheet or export to an alternate filename with an automated suggestion.
+- **Environment Multi-Path Traversal**: Extended `loadEnv` to resolve `.env` across `__DIR__/../.env`, `__DIR__/.env`, and `getcwd()/.env`, with an upfront warning when `HUBSPOT_ACCESS_TOKEN` contains a placeholder.
+
 ## [v1.1.1] - 2026-10-03
 
 ### Fixed

@@ -29,21 +29,22 @@ function loadEnv(string $path): void
     }
     $lines = file($path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
     foreach ($lines as $line) {
-        if (str_starts_with(trim($line), '#') || !str_contains($line, '=')) {
+        $line = trim($line);
+        if (str_starts_with($line, '#') || !str_contains($line, '=')) {
             continue;
         }
         [$key, $value] = explode('=', $line, 2);
         $key   = trim($key);
         $value = trim($value, " \t\n\r\0\x0B\"'");
-        if (!isset($_ENV[$key])) {
-            $_ENV[$key] = $value;
-            putenv("{$key}={$value}");
-        }
+        $_ENV[$key] = $value;
+        putenv("{$key}={$value}");
     }
 }
 
+// Multi-path environment traversal
 loadEnv(__DIR__ . '/../.env');
 loadEnv(__DIR__ . '/.env');
+loadEnv(getcwd() . '/.env');
 
 // ─── Parse CLI arguments ───────────────────────────────────────────────────
 
@@ -57,6 +58,12 @@ $accessToken = getenv('HUBSPOT_ACCESS_TOKEN');
 if (!$accessToken) {
     fwrite(STDERR, "Error: HUBSPOT_ACCESS_TOKEN environment variable is required.\n");
     exit(1);
+}
+
+if (str_contains($accessToken, 'replace-with')) {
+    fwrite(STDERR, "Warning: HUBSPOT_ACCESS_TOKEN in .env is set to a placeholder:\n");
+    fwrite(STDERR, "         '{$accessToken}'\n");
+    fwrite(STDERR, "         Please update your .env with a valid HubSpot Service Key or Private App token.\n\n");
 }
 
 // ─── Configuration ─────────────────────────────────────────────────────────
@@ -144,9 +151,23 @@ if ($outputDir && $outputDir !== '.' && !is_dir($outputDir)) {
     }
 }
 
-$fp = fopen($output, 'w');
+$fp = @fopen($output, 'w');
 if ($fp === false) {
     fwrite(STDERR, "Error: Cannot open output file for writing: {$output}\n");
+    if (file_exists($output)) {
+        fwrite(STDERR, "Reason: The file is currently locked by another application (e.g. Microsoft Excel).\n");
+        fwrite(STDERR, "        On Windows, open spreadsheet applications place an exclusive lock on CSV files.\n\n");
+        fwrite(STDERR, "Solution:\n");
+        fwrite(STDERR, "  1. Close '{$output}' in Microsoft Excel or your CSV editor, OR\n");
+        $altOutput = preg_replace('/\.csv$/i', '_' . date('Ymd_His') . '.csv', $output);
+        fwrite(STDERR, "  2. Specify a different output filename, for example:\n");
+        fwrite(STDERR, "     php export-deals.php --days={$days} --output={$altOutput}\n\n");
+    } else {
+        $err = error_get_last();
+        if ($err && isset($err['message'])) {
+            fwrite(STDERR, "Details: {$err['message']}\n\n");
+        }
+    }
     exit(1);
 }
 
