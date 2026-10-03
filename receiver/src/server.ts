@@ -57,14 +57,13 @@ export function buildServer(options: ServerOptions): FastifyInstance {
   );
 
   // ─── GET /health and /healthz ────────────────────────────────────────────
-  const healthHandler = async () => {
+  const healthHandler = async (_request: any, reply: any) => {
     try {
       const db = getDb();
       db.prepare('SELECT 1').get();
       return { status: 'healthy', timestamp: new Date().toISOString() };
     } catch {
-      return app.httpErrors?.serviceUnavailable?.() ??
-        { status: 'unhealthy', timestamp: new Date().toISOString() };
+      return reply.status(503).send({ status: 'unhealthy', timestamp: new Date().toISOString() });
     }
   };
   app.get('/health', healthHandler);

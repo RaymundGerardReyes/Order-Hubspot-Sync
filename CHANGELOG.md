@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.1.10] - 2026-10-03
+
+### Fixed
+- **Docker & Production TypeScript Compilation (`receiver/src/server.ts`, `receiver/tsconfig.json`)**: Replaced non-standard `app.httpErrors` call in health check handler with standard Fastify `reply.status(503).send(...)`, eliminating TypeScript compile error `TS2339`. Scoped `receiver/tsconfig.json` compiler options to `rootDir: "./src"`, `include: ["src/**/*"]`, ensuring production Docker image builds (`RUN npm run build`) compile cleanly into `dist/main.js`.
+
 ## [v1.1.9] - 2026-10-03
 
 ### Added
