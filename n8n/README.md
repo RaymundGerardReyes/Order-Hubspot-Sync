@@ -125,3 +125,16 @@ curl -X POST "http://localhost:5678/webhook-test/orders" \
    * It extracts the `executionId`, `error.message`, and `lastNodeExecuted`.
    * The **Notify On Failure** node dispatches an HTTP POST payload to the notification endpoint configured in `$env.NOTIFICATION_WEBHOOK_URL` (or fallback).
 3. This guarantees ops/support teams receive immediate alerts whenever an order sync encounters an unexpected failure.
+
+---
+
+## 7. Frequently Asked Questions & Diagnostics
+
+### Q: Why do startup logs say `Failed to start Python task runner in internal mode`?
+```text
+Failed to start Python task runner in internal mode. because Python 3 is missing from this system.
+Launching a Python runner in internal mode is intended only for debugging and is not recommended for production.
+```
+* **Status**: Harmless informational notice.
+* **Why it appears**: In modern n8n (v2.x), n8n checks at boot for an optional Python 3 environment. The official Alpine base container intentionally does not bundle Python 3 to maintain a lightweight image.
+* **Does it affect our order pipeline?**: **No**. The Stage 2 order integration pipeline uses **JavaScript** in the Code node (which registered successfully as `JS Task Runner`). Python is not required, and n8n continues running normally on `http://localhost:5678`.

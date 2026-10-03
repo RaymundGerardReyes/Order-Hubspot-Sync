@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.1.12] - 2026-10-03
+
+### Changed
+- **n8n Environment & Task Runner Documentation (`docker-compose.yml`, `n8n/README.md`)**: Upgraded `WEBHOOK_URL` to modern `N8N_WEBHOOK_URL` in Docker Compose specification to address deprecation warnings. Added diagnostic documentation in `n8n/README.md` clarifying that the startup notice `Failed to start Python task runner in internal mode` is a non-blocking informational notice that does not impact our JavaScript-based order automation workflow.
+
 ## [v1.1.11] - 2026-10-03
 
 ### Fixed
