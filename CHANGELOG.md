@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.1.7] - 2026-10-03
+
+### Changed
+- **Remote Branch Sanitization & Local Invariant Isolation (`.gitignore`)**: Untracked internal workspace governance (`AGENTS.md`), test specification documentation (`TESTING_MODULES.md`), and infrastructure scaffolding scripts (`scaffold.ps1`, `scaffold.sh`, `SCAFFOLD.md`) from Git tracking, isolating them within `.gitignore`. Completely vanishes all non-production scaffolding and internal rules from the remote repository branch while preserving their complete integrity in the local development workspace.
+- **CLI Test Script Tracking (`scripts/send-curl.sh`, `.gitignore`)**: Whitelisted `scripts/send-curl.sh` in `.gitignore` to accompany `scripts/mock-webhook.ts`, ensuring end-to-end curl webhook testing documentation in `README.md` is reproducible out-of-the-box.
+
 ## [v1.1.6] - 2026-10-03
 
 ### Fixed

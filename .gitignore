@@ -8,6 +8,14 @@ backend/vendor/
 # Local scripts & utilities (mock-webhook required by take-home brief)
 scripts/*
 !scripts/mock-webhook.ts
+!scripts/send-curl.sh
+
+# Local workspace governance, scaffolding, and developer documentation (local only, do not track remotely)
+AGENTS.md
+SCAFFOLD.md
+TESTING_MODULES.md
+scaffold.ps1
+scaffold.sh
 
 # Environment files
 .env
