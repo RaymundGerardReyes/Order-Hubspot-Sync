@@ -189,7 +189,7 @@ export function buildServer(options: ServerOptions): FastifyInstance {
 
       return {
         // Analysis doc contract format
-        attempt_id: row.id,
+        attempt_id: (row as any).attempt_id ?? row.id,
         order_id: row.order_id,
         trigger: row.trigger,
         customer_email: orderPayload?.customer?.email ?? null,
@@ -206,7 +206,7 @@ export function buildServer(options: ServerOptions): FastifyInstance {
         can_retry: canRetry,
 
         // Dual-casing aliases for TypeScript UI compatibility
-        id: String(row.id),
+        id: String((row as any).attempt_id ?? row.id),
         orderId: row.order_id,
         hubspotDealId: row.hubspot_deal_id,
         hubspotContactId: row.hubspot_contact_id,

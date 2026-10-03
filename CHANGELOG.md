@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.1.4] - 2026-10-03
+
+### Fixed
+- **Attempt ID Resolution & Retry Ergonomics (`receiver/src/server.ts`, `repositories.ts`, `SyncTable.tsx`)**: Selected `a.id` explicitly in `listRecent` SQL and added dual-casing fallbacks (`attempt_id` / `id`), ensuring `id` is populated as a valid numeric ID rather than `"undefined"`. Updated `SyncTable.tsx` and `useRetry.ts` to seamlessly identify rows and execute retries against either attempt ID or order ID.
+
 ## [v1.1.3] - 2026-10-03
 
 ### Fixed

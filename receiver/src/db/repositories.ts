@@ -155,6 +155,7 @@ export const attemptRepo = {
     const db = getDb();
     return db.prepare<[number], DashboardRow>(`
       SELECT
+        a.id,
         a.id           AS attempt_id,
         a.order_id,
         a.trigger,

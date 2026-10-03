@@ -121,7 +121,7 @@ export function SyncTable({
           </thead>
           <tbody>
             {syncs.map((sync) => (
-              <tr key={sync.id}>
+              <tr key={sync.id || sync.orderId}>
                 <td className="col-order-id" data-label="Order ID">
                   {sync.orderId}
                 </td>
@@ -157,9 +157,9 @@ export function SyncTable({
                 <td data-label="Actions">
                   {sync.status === 'failed' && (
                     <RetryButton
-                      attemptId={sync.id}
+                      attemptId={sync.id || sync.orderId}
                       onRetry={onRetry}
-                      isLoading={retryingId === sync.id}
+                      isLoading={retryingId === sync.id || retryingId === sync.orderId}
                       disabled={retryingId !== null}
                     />
                   )}
