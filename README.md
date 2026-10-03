@@ -1,6 +1,6 @@
 # HubSpot Order Sync: Integration Pipeline
 
-[![Version](https://img.shields.io/badge/version-v1.1.5-blue.svg)](VERSION)
+[![Version](https://img.shields.io/badge/version-v1.1.6-blue.svg)](VERSION)
 [![SemVer](https://img.shields.io/badge/SemVer-2.0.0-green.svg)](https://semver.org)
 [![Node.js](https://img.shields.io/badge/Node.js-20%2B%20%7C%2022-339933.svg?logo=node.js)](receiver/)
 [![Fastify](https://img.shields.io/badge/Fastify-4.x-black.svg?logo=fastify)](receiver/)
@@ -243,16 +243,21 @@ A test utility in `scripts/mock-webhook.ts` generates valid HMAC-SHA256 signatur
 npx tsx scripts/mock-webhook.ts
 ```
 
-Or test using `curl`:
+Or test manually using `curl` and `openssl` (use the same `WEBHOOK_SECRET` configured in your `.env`):
 ```bash
 BODY='{"event":"order.created","order_id":"ORD-10482","created_at":"2026-09-20T14:32:00+08:00","customer":{"email":"maria.santos@example.com","first_name":"Maria","last_name":"Santos","phone":"+639171234567"},"items":[{"sku":"TSH-BLK-M","name":"Black Tee (M)","qty":2,"price":450.00}],"currency":"PHP","total":900.00}'
+SECRET="stage2_secret_key_super_secure_99"
 
-SIG=$(echo -n "$BODY" | openssl dgst -sha256 -hmac "replace-with-a-long-random-secret" | awk '{print $2}')
+SIG=$(printf "%s" "$BODY" | openssl dgst -sha256 -hmac "$SECRET" | awk '{print $NF}')
 
 curl -X POST http://localhost:3001/webhooks/orders \
   -H "Content-Type: application/json" \
   -H "X-Webhook-Signature: $SIG" \
   -d "$BODY"
+```
+Or execute the included helper script:
+```bash
+bash scripts/send-curl.sh ORD-10482
 ```
 
 ### Automated Tests
