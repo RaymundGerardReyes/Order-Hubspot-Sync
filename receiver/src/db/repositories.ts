@@ -22,6 +22,8 @@ export interface AttemptRow {
   trigger: AttemptTrigger;
   status: OrderStatus;
   retry_count: number;
+  retry_of?: number | null;
+  attempt_number?: number;
   hubspot_contact_id: string | null;
   hubspot_deal_id: string | null;
   error_code: string | null;
@@ -79,10 +81,19 @@ export const orderRepo = {
 export const attemptRepo = {
   insert(orderId: string, trigger: AttemptTrigger = 'webhook'): AttemptRow {
     const db = getDb();
+    const prior = db.prepare<[string], { count: number; last_id: number | null }>(`
+      SELECT COUNT(*) AS count, MAX(id) AS last_id FROM sync_attempts WHERE order_id = ?
+    `).get(orderId);
+
+    const attemptNumber = (prior?.count ?? 0) + 1;
+    const retryOf = prior?.last_id ?? null;
+    const retryCount = prior?.count ?? 0;
+
     const info = db.prepare(`
-      INSERT INTO sync_attempts (order_id, trigger, status)
-      VALUES (?, ?, 'pending')
-    `).run(orderId, trigger);
+      INSERT INTO sync_attempts (order_id, trigger, status, retry_count, retry_of, attempt_number)
+      VALUES (?, ?, 'pending', ?, ?, ?)
+    `).run(orderId, trigger, retryCount, retryOf, attemptNumber);
+
     return db.prepare<[number], AttemptRow>(
       'SELECT * FROM sync_attempts WHERE id = ?'
     ).get(info.lastInsertRowid as number)!;
@@ -161,6 +172,8 @@ export const attemptRepo = {
         a.trigger,
         a.status,
         a.retry_count,
+        a.retry_of,
+        a.attempt_number,
         a.hubspot_contact_id,
         a.hubspot_deal_id,
         a.error_code,

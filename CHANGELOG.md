@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.1.5] - 2026-10-03
+
+### Fixed
+- **Sequential Attempt Numbering (`receiver/src/db/repositories.ts`, `migrations.ts`)**: Implemented dynamic prior-attempt counting and `retry_of` tracking with idempotent SQLite schema additions, guaranteeing sequential attempt increments (`#1`, `#2 (retry)`, `#3 (retry)`) instead of frozen `#1` labels across retries.
+- **HubSpot Upstream Error Extraction (`receiver/src/hubspot/client.ts`, `web/src/features/syncs/format.ts`)**: Added JSON message extraction and `formatFailureDetail` helper to parse upstream CRM error bodies into clean, human-readable descriptions, eliminating raw JSON dumps and redundant code prefixes in the dashboard.
+- **Resilient Deal Fallback for Custom Properties (`receiver/src/hubspot/repository.ts`)**: Added graceful fallback to deal name and description matching when the custom `external_order_id` property is not yet provisioned in a fresh HubSpot developer account.
+- **Polling Lifecycle & Memory Leak Hardening (`web/src/features/syncs/hooks/useSyncs.ts`, `receiver/src/hubspot/client.ts`)**: Added `isMountedRef` lifecycle protection in React polling hooks and moved timeout cleanup to `finally` blocks in the HTTP client to eliminate dangling timers.
+
 ## [v1.1.4] - 2026-10-03
 
 ### Fixed

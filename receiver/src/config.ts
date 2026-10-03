@@ -17,7 +17,7 @@ const candidateEnvPaths = [
 let envLoaded = false;
 for (const envPath of candidateEnvPaths) {
   if (fs.existsSync(envPath)) {
-    dotenv.config({ path: envPath });
+    dotenv.config({ path: envPath, override: true });
     envLoaded = true;
     break;
   }

@@ -33,6 +33,23 @@ interface HubSpotClientOptions {
 
 // Base delays for retries (ms): attempt 1→500ms, 2→1000ms, 3→2000ms
 const BASE_DELAYS_MS = [500, 1000, 2000];
+
+function parseHubSpotErrorMessage(bodyText: string, status: number): string {
+  try {
+    const parsed = JSON.parse(bodyText);
+    if (parsed && typeof parsed === 'object') {
+      if (typeof parsed.message === 'string' && parsed.message.trim()) {
+        return parsed.message.trim();
+      }
+      if (typeof parsed.error === 'string' && parsed.error.trim()) {
+        return parsed.error.trim();
+      }
+    }
+  } catch {
+    // not JSON
+  }
+  return bodyText.slice(0, 300).trim() || `HTTP ${status}`;
+}
 const MAX_JITTER_MS = 250;
 
 function jitter(): number {
@@ -92,12 +109,13 @@ export class HubSpotClient {
         let bodyText = '';
         try { bodyText = await response.text(); } catch { /* ignore */ }
 
+        const cleanMsg = parseHubSpotErrorMessage(bodyText, status);
         const isRetryable = status === 429 || status >= 500;
 
         if (!isRetryable) {
           // Permanent failure — do not retry
           throw new HubSpotError(
-            `HubSpot ${status}: ${bodyText.slice(0, 500)}`,
+            `HubSpot ${status}: ${cleanMsg}`,
             status,
             false,
             correlationId
@@ -105,7 +123,7 @@ export class HubSpotClient {
         }
 
         lastError = new HubSpotError(
-          `HubSpot ${status} after attempt ${attempt}: ${bodyText.slice(0, 300)}`,
+          `HubSpot ${status} after attempt ${attempt}: ${cleanMsg}`,
           status,
           true,
           correlationId
@@ -126,8 +144,6 @@ export class HubSpotClient {
         }
 
       } catch (err: unknown) {
-        clearTimeout(timer);
-
         if (err instanceof HubSpotError) {
           if (!err.isRetryable) throw err;
           lastError = err;
@@ -143,6 +159,8 @@ export class HubSpotClient {
         if (attempt < this.maxAttempts) {
           await sleep((BASE_DELAYS_MS[attempt - 1] ?? 2000) + jitter());
         }
+      } finally {
+        clearTimeout(timer);
       }
     }
 

@@ -97,60 +97,108 @@ export class HubSpotRepository {
    * Returns the canonical HubSpot deal ID.
    */
   async findOrCreateDeal(payload: OrderPayload, contactId: string): Promise<string> {
-    // Search by external_order_id (custom unique property — idempotency key)
-    const searchResult = await this.client.request<{ results: Array<{ id: string }> }>(
-      'POST',
-      'crm/v3/objects/deals/search',
-      {
-        filterGroups: [{
-          filters: [{
-            propertyName: this.orderIdProperty,
-            operator: 'EQ',
-            value: payload.order_id,
+    // Search for existing deal — try external_order_id, fall back to dealname
+    let existingDealId: string | null = null;
+    try {
+      const searchResult = await this.client.request<{ results: Array<{ id: string }> }>(
+        'POST',
+        'crm/v3/objects/deals/search',
+        {
+          filterGroups: [{
+            filters: [{
+              propertyName: this.orderIdProperty,
+              operator: 'EQ',
+              value: payload.order_id,
+            }],
           }],
-        }],
-        limit: 1,
+          limit: 1,
+        }
+      );
+      if (searchResult.results?.[0]?.id) {
+        existingDealId = searchResult.results[0].id;
       }
-    );
-
-    if (searchResult.results?.[0]?.id) {
-      // Deal already exists in HubSpot — crash recovery path
-      const dealId = searchResult.results[0].id;
-      // Ensure association is still intact
-      await this.associateDealContact(dealId, contactId);
-      return dealId;
+    } catch {
+      // If external_order_id property doesn't exist, search by dealname containing order_id
+      try {
+        const fallbackSearch = await this.client.request<{ results: Array<{ id: string }> }>(
+          'POST',
+          'crm/v3/objects/deals/search',
+          {
+            filterGroups: [{
+              filters: [{
+                propertyName: 'dealname',
+                operator: 'CONTAINS_TOKEN',
+                value: payload.order_id,
+              }],
+            }],
+            limit: 1,
+          }
+        );
+        if (fallbackSearch.results?.[0]?.id) {
+          existingDealId = fallbackSearch.results[0].id;
+        }
+      } catch {
+        // Continue to creation
+      }
     }
 
-    // Create deal with contact association in a single request
+    if (existingDealId) {
+      // Deal already exists in HubSpot — crash recovery path
+      await this.associateDealContact(existingDealId, contactId);
+      return existingDealId;
+    }
+
+    // Create deal with contact association
     const dealName = this.buildDealName(payload);
     const closeDateUtc = new Date(payload.created_at).toISOString().split('T')[0] + 'T00:00:00.000Z';
+    const description = `Order ID: ${payload.order_id}`;
 
-    try {
+    const createDealWithProps = async (props: Record<string, string>) => {
       const created = await this.client.request<{ id: string }>(
         'POST',
         'crm/v3/objects/deals',
         {
-          properties: {
-            dealname: dealName,
-            amount: payload.total.toFixed(2),
-            pipeline: this.pipelineId,
-            dealstage: this.dealStageId,
-            closedate: closeDateUtc,
-            [this.orderIdProperty]: payload.order_id,
-          },
+          properties: props,
           associations: [{
             to: { id: contactId },
             types: [{ associationCategory: 'HUBSPOT_DEFINED', associationTypeId: 3 }],
           }],
         }
       );
-
       return created.id;
+    };
+
+    const baseProps: Record<string, string> = {
+      dealname: dealName,
+      amount: payload.total.toFixed(2),
+      pipeline: this.pipelineId,
+      dealstage: this.dealStageId,
+      closedate: closeDateUtc,
+      description,
+    };
+
+    try {
+      // 1. Try with custom external_order_id property first
+      return await createDealWithProps({
+        ...baseProps,
+        [this.orderIdProperty]: payload.order_id,
+      });
     } catch (err: unknown) {
-      // Dynamic fallback: If pipeline or stage ID is rejected by HubSpot, auto-discover portal's primary pipeline
+      const errorMsg = err instanceof Error ? err.message.toLowerCase() : '';
+
+      // 2. If external_order_id property does not exist in portal, retry with standard properties
+      if (errorMsg.includes('external_order_id') || errorMsg.includes('property') || errorMsg.includes('exist')) {
+        try {
+          return await createDealWithProps(baseProps);
+        } catch (innerErr: unknown) {
+          err = innerErr;
+        }
+      }
+
+      // 3. Dynamic pipeline discovery fallback: If pipeline or stage ID is rejected
       if (err instanceof Error && 'statusCode' in err && (err as { statusCode: number }).statusCode === 400) {
-        const errorMsg = (err as Error).message.toLowerCase();
-        if (errorMsg.includes('pipeline') || errorMsg.includes('stage')) {
+        const msg = (err as Error).message.toLowerCase();
+        if (msg.includes('pipeline') || msg.includes('stage')) {
           try {
             const pipelineData = await this.client.request<{
               results: Array<{ id: string; stages: Array<{ id: string; label: string }> }>;
@@ -162,28 +210,14 @@ export class HubSpotRepository {
                 primaryPipeline.stages.find((s) => /closed\s*won/i.test(s.label) || s.id === 'closedwon') ||
                 primaryPipeline.stages[primaryPipeline.stages.length - 1];
 
-              const recovered = await this.client.request<{ id: string }>(
-                'POST',
-                'crm/v3/objects/deals',
-                {
-                  properties: {
-                    dealname: dealName,
-                    amount: payload.total.toFixed(2),
-                    pipeline: primaryPipeline.id,
-                    dealstage: wonStage.id,
-                    closedate: closeDateUtc,
-                    [this.orderIdProperty]: payload.order_id,
-                  },
-                  associations: [{
-                    to: { id: contactId },
-                    types: [{ associationCategory: 'HUBSPOT_DEFINED', associationTypeId: 3 }],
-                  }],
-                }
-              );
-              return recovered.id;
+              return await createDealWithProps({
+                ...baseProps,
+                pipeline: primaryPipeline.id,
+                dealstage: wonStage.id,
+              });
             }
           } catch {
-            // fallback discovery failed, rethrow original error
+            // discovery failed
           }
         }
       }

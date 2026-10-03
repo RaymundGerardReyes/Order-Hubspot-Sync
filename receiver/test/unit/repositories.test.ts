@@ -69,4 +69,24 @@ describe('SQLite Repositories Unit Tests', () => {
     expect(updated?.error_code).toBe('503');
     expect(updated?.error_message).toContain('HubSpot rate limit exceeded');
   });
+
+  it('increments attempt_number and links retry_of across sequential retries', () => {
+    const payload: any = { ...validOrder, order_id: 'ORD-RETRY-SEQ' };
+    orderRepo.insertIfNew(payload);
+
+    const first = attemptRepo.insert('ORD-RETRY-SEQ', 'webhook');
+    expect(first.attempt_number).toBe(1);
+    expect(first.retry_count).toBe(0);
+    expect(first.retry_of).toBeNull();
+
+    const second = attemptRepo.insert('ORD-RETRY-SEQ', 'manual_retry');
+    expect(second.attempt_number).toBe(2);
+    expect(second.retry_count).toBe(1);
+    expect(second.retry_of).toBe(first.id);
+
+    const third = attemptRepo.insert('ORD-RETRY-SEQ', 'manual_retry');
+    expect(third.attempt_number).toBe(3);
+    expect(third.retry_count).toBe(2);
+    expect(third.retry_of).toBe(second.id);
+  });
 });

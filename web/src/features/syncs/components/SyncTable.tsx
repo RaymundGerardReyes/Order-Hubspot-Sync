@@ -2,7 +2,7 @@ import React from 'react';
 import { SyncAttempt } from '../types';
 import { RetryButton } from './RetryButton';
 import { StatusBadge } from './StatusBadge';
-import { formatDate } from '../format';
+import { formatDate, formatFailureDetail } from '../format';
 
 export interface SyncTableProps {
   syncs: SyncAttempt[];
@@ -147,9 +147,7 @@ export function SyncTable({
                   data-label="Failure Detail"
                   title={sync.failureMessage ?? undefined}
                 >
-                  {sync.failureMessage
-                    ? `[${sync.failureCode ?? 'ERR'}] ${sync.failureMessage}`
-                    : '—'}
+                  {formatFailureDetail(sync.failureMessage, sync.failureCode)}
                 </td>
                 <td className="col-date" data-label="Timestamp">
                   {formatDate(sync.createdAt)}

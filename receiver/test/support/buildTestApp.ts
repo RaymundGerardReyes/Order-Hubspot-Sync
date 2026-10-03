@@ -10,7 +10,7 @@ export interface TestAppOptions {
  * Build test Fastify app instance with test configuration.
  */
 export function buildTestApp(options: TestAppOptions = {}): FastifyInstance {
-  process.env.DATABASE_URL = process.env.DATABASE_URL || 'file:./data/test-order-sync.sqlite';
+  process.env.DATABASE_URL = 'file:./data/test-order-sync.sqlite';
 
   const baseConfig: ApiConfig = {
     webhookSecret: process.env.WEBHOOK_SECRET || 'test_webhook_secret_key_123',
