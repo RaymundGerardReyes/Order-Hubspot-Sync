@@ -1,6 +1,6 @@
 # HubSpot Order Sync: Integration Pipeline
 
-[![Version](https://img.shields.io/badge/version-v1.1.8-blue.svg)](VERSION)
+[![Version](https://img.shields.io/badge/version-v1.1.9-blue.svg)](VERSION)
 [![SemVer](https://img.shields.io/badge/SemVer-2.0.0-green.svg)](https://semver.org)
 [![Node.js](https://img.shields.io/badge/Node.js-20%2B%20%7C%2022-339933.svg?logo=node.js)](receiver/)
 [![Fastify](https://img.shields.io/badge/Fastify-4.x-black.svg?logo=fastify)](receiver/)
@@ -321,6 +321,21 @@ HubSpot API requests (`receiver/src/hubspot/client.ts`) execute with automated r
 2. **Close Date**: Mapped to midnight UTC of the order's `created_at` timestamp.
 3. **Minor-Unit Validation**: Order totals are cross-checked against the sum of items (`sum(qty * price)`) in integer minor units (centavos) to reject corrupted payloads.
 4. **Manual Retry Source**: Retries re-read the original payload from `orders.payload_json`; client-supplied request bodies on retry are discarded to prevent tampering.
+
+---
+
+## Bonus Objectives: n8n Workflow & Docker Compose
+
+### 1. n8n Low-Code Workflow (`n8n/order-to-hubspot.json`)
+The complete ingestion, normalization, contact upsert, deal creation, and error notification pipeline is exported as a standalone n8n workflow in [`n8n/order-to-hubspot.json`](./n8n/order-to-hubspot.json).
+* **Setup Guide**: See [`n8n/README.md`](./n8n/README.md) for a step-by-step beginner guide on running n8n via `npx n8n` or `docker compose up -d n8n`, importing the workflow JSON, and connecting your HubSpot Service Key.
+* **Error Workflow**: Built-in `Error Trigger` node intercepts execution failures and dispatches failure context (error message, last node executed, execution ID) to alert webhooks.
+
+### 2. Docker Compose Multi-Service Stack (`docker-compose.yml`)
+Run the entire stack (Fastify receiver on port 3001, Next.js web dashboard on port 3000, and optional n8n on port 5678) using:
+```bash
+docker compose up -d
+```
 
 ---
 

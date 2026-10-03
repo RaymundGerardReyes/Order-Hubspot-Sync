@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.1.9] - 2026-10-03
+
+### Added
+- **n8n Workflow Setup Guide & Multi-Service Provisioning (`n8n/README.md`, `docker-compose.yml`)**: Added complete beginner setup walkthrough for the bonus n8n automation pipeline ([`n8n/order-to-hubspot.json`](file:///d:/New%20folder%20%282%29/Order-Hubspot-Sync/n8n/order-to-hubspot.json)), detailing startup via `npx n8n` and `docker compose up -d n8n`, workflow canvas import, HubSpot Service Key credential binding, test execution, and the error trigger notification flow.
+
 ## [v1.1.8] - 2026-10-03
 
 ### Fixed
