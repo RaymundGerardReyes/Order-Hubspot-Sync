@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.2.1] - 2026-10-05
+
+### Fixed
+- **Root Workspace CLI Ergonomics (`package.json`)**: Added root-level `package.json` proxy scripts (`test`, `test:n8n`, `mock`, `dev:api`, `dev:web`) allowing developers to execute test suites and mock scripts directly from the repository root without requiring `cd receiver`.
+- **Intelligent n8n Test Preflight & Auto-Discovery (`scripts/test-n8n.ts`)**: Enhanced the n8n test runner with pre-flight webhook probing. When an unactivated workflow returns HTTP 404, the test harness automatically attempts discovery of active test canvas webhooks (`/webhook-test/orders`) or displays actionable step-by-step guidance on toggling the workflow Active in the n8n editor.
+
 ## [v1.2.0] - 2026-10-05
 
 ### Added

@@ -1,6 +1,6 @@
 {
   "name": "order-hubspot-sync-api",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "private": true,
   "type": "module",
   "scripts": {
@@ -13,7 +13,8 @@
     "test:integration": "vitest run test/integration",
     "test:e2e": "vitest run test/e2e",
     "test:regression": "vitest run test/regression",
-    "test:n8n": "tsx ../scripts/test-n8n.ts"
+    "test:n8n": "tsx ../scripts/test-n8n.ts",
+    "mock": "tsx ../scripts/mock-webhook.ts"
   },
   "dependencies": {
     "@fastify/cors": "^9.0.1",

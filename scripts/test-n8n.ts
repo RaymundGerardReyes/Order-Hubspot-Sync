@@ -42,7 +42,7 @@ for (const envPath of [
 const secret = process.env.WEBHOOK_SECRET || 'stage2_secret_key_super_secure_99';
 const defaultUrl = process.env.N8N_WEBHOOK_URL || 'http://localhost:5678/webhook/orders';
 const cliUrl = process.argv.slice(2).find((arg) => arg.startsWith('--url='))?.split('=')[1];
-const targetUrl = cliUrl || defaultUrl;
+let targetUrl = cliUrl || defaultUrl;
 
 interface TestCaseResult {
   name: string;
@@ -58,7 +58,7 @@ function sign(payload: string, key: string = secret): string {
   return crypto.createHmac('sha256', key).update(payload).digest('hex');
 }
 
-async function dispatch(body: string, signature?: string): Promise<{ status: number; data: any; text: string }> {
+async function dispatch(body: string, signature?: string, url: string = targetUrl): Promise<{ status: number; data: any; text: string }> {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     'X-Request-Id': crypto.randomUUID(),
@@ -67,7 +67,7 @@ async function dispatch(body: string, signature?: string): Promise<{ status: num
     headers['X-Webhook-Signature'] = signature;
   }
 
-  const res = await fetch(targetUrl, {
+  const res = await fetch(url, {
     method: 'POST',
     headers,
     body,
@@ -84,11 +84,67 @@ async function dispatch(body: string, signature?: string): Promise<{ status: num
   return { status: res.status, data, text };
 }
 
+function printActivationGuide(url: string): void {
+  console.log('\n========================================================================');
+  console.log('  [!] ACTION REQUIRED: n8n Workflow Is Not Active');
+  console.log('========================================================================');
+  console.log(`n8n responded that the webhook endpoint is not registered:\n  Target: ${url}\n`);
+  console.log('To activate your n8n workflow for automated testing:');
+  console.log('  1. Open n8n in your browser: http://localhost:5678');
+  console.log('  2. Open your workflow ("Order to HubSpot Sync with Full Validation")');
+  console.log('  3. In the top-right corner of the canvas, switch the "Active" toggle to ON.');
+  console.log('  4. Re-run: npm run test:n8n\n');
+  console.log('Alternatively, if you want to test interactively inside the editor canvas:');
+  console.log('  1. Double-click "Order Webhook Trigger" -> click "Listen for test event".');
+  console.log('  2. Run: npm run test:n8n -- --url=http://localhost:5678/webhook-test/orders');
+  console.log('========================================================================\n');
+}
+
 async function runTestSuite(): Promise<void> {
   console.log('\n======================================================');
   console.log('  n8n Automated Workflow Validation & Logic Test Suite');
-  console.log(`  Target Webhook: ${targetUrl}`);
+  console.log(`  Initial Target: ${targetUrl}`);
   console.log('======================================================\n');
+
+  // Preflight health and registration probe
+  try {
+    const probeRes = await dispatch(JSON.stringify({ ping: true }));
+    if (probeRes.status === 404 && probeRes.text.includes('is not registered')) {
+      // Check test webhook URL
+      const testWebhookUrl = targetUrl.includes('/webhook/') 
+        ? targetUrl.replace('/webhook/', '/webhook-test/') 
+        : targetUrl;
+
+      if (testWebhookUrl !== targetUrl) {
+        try {
+          const testProbe = await dispatch(JSON.stringify({ ping: true }), undefined, testWebhookUrl);
+          if (testProbe.status !== 404 || !testProbe.text.includes('is not registered')) {
+            console.log(`[Auto-Discovery] Switching to active n8n test webhook: ${testWebhookUrl}\n`);
+            targetUrl = testWebhookUrl;
+          } else {
+            printActivationGuide(targetUrl);
+            process.exit(1);
+          }
+        } catch {
+          printActivationGuide(targetUrl);
+          process.exit(1);
+        }
+      } else {
+        printActivationGuide(targetUrl);
+        process.exit(1);
+      }
+    }
+  } catch (err: any) {
+    if (err?.cause?.code === 'ECONNREFUSED' || err?.code === 'ECONNREFUSED') {
+      console.error(
+        `\n[Error] Connection refused at ${targetUrl}.\n` +
+        `The n8n container is not running on port 5678.\n` +
+        `Please start n8n:\n` +
+        `  docker compose up -d n8n\n`
+      );
+      process.exit(1);
+    }
+  }
 
   const testOrderId = `N8N-TEST-${Date.now().toString(36).toUpperCase()}`;
 
@@ -120,7 +176,6 @@ async function runTestSuite(): Promise<void> {
     const signature = sign(raw);
     const res = await dispatch(raw, signature);
 
-    // Accept 202 (or 200 in mock test mode)
     const passed = res.status === 202 || res.status === 200;
     results.push({
       name: 'Test 1: Valid Order Submission with Proper HMAC',
@@ -179,9 +234,9 @@ async function runTestSuite(): Promise<void> {
       order_id: `MATH-FAIL-${Date.now()}`,
       created_at: new Date().toISOString(),
       customer: { email: 'math@example.com', first_name: 'Math', last_name: 'Test' },
-      items: [{ sku: 'ITEM-1', name: 'Item', qty: 2, price: 450.0 }], // Sum = 900
+      items: [{ sku: 'ITEM-1', name: 'Item', qty: 2, price: 450.0 }],
       currency: 'PHP',
-      total: 999.0, // Tampered total
+      total: 999.0,
     };
     const raw = JSON.stringify(payload);
     const signature = sign(raw);
@@ -209,7 +264,7 @@ async function runTestSuite(): Promise<void> {
   try {
     const validDuplicate = {
       event: 'order.created',
-      order_id: testOrderId, // Re-submitting exact orderId from Test 1
+      order_id: testOrderId,
       created_at: new Date().toISOString(),
       customer: { email: 'maria.santos@example.com', first_name: 'Maria', last_name: 'Santos' },
       items: [{ sku: 'TSH-BLK-M', name: 'Black Tee (M)', qty: 2, price: 450.0 }],
@@ -294,7 +349,6 @@ async function runTestSuite(): Promise<void> {
   } else {
     console.error('  SOME TESTS FAILED — Review log output above.');
     console.log('======================================================\n');
-    // Exit with non-zero when run in CI or test runners
     process.exit(1);
   }
 }

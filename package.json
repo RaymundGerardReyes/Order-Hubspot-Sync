@@ -1,0 +1,15 @@
+{
+  "name": "order-hubspot-sync",
+  "version": "1.2.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "npm test --prefix receiver && npm test --prefix web",
+    "test:receiver": "npm test --prefix receiver",
+    "test:web": "npm test --prefix web",
+    "test:n8n": "npm run test:n8n --prefix receiver --",
+    "mock": "npm run mock --prefix receiver --",
+    "dev:api": "npm run dev --prefix receiver",
+    "dev:web": "npm run dev --prefix web"
+  }
+}
