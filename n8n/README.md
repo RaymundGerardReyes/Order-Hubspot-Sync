@@ -93,30 +93,49 @@ To allow the workflow to create contacts and deals in your HubSpot portal:
 
 ---
 
-## 5. Testing the Workflow
+## 5. Automated Testing & Logic Proof (`scripts/test-n8n.ts`)
 
-1. In n8n, double-click the **Order Webhook Trigger** node.
-2. Click the **Listen for test event** button.
-   * n8n will activate and display the test webhook URL:
-     `http://localhost:5678/webhook-test/orders`
-3. In your terminal, send a sample order payload:
+To mathematically and cryptographically prove that the n8n workflow executes the business logic correctly, an automated test harness is provided in [`scripts/test-n8n.ts`](../scripts/test-n8n.ts).
+
+### Running the Automated n8n Test Suite
+Make sure the workflow is activated in n8n (or set to listen for events), then run:
 
 ```bash
-curl -X POST "http://localhost:5678/webhook-test/orders" \
-  -H "Content-Type: application/json" \
-  -d '{"event":"order.created","order_id":"ORD-N8N-101","created_at":"2026-10-03T14:32:00+08:00","customer":{"email":"maria.santos@example.com","first_name":"Maria","last_name":"Santos","phone":"+639171234567"},"items":[{"sku":"TSH-BLK-M","name":"Black Tee (M)","qty":2,"price":450.00}],"currency":"PHP","total":900.00}'
+# From receiver/ directory:
+npm run test:n8n
+
+# Or directly from root via tsx:
+npx tsx scripts/test-n8n.ts --url=http://localhost:5678/webhook/orders
 ```
 
-4. Look at the n8n canvas:
-   * **Order Webhook Trigger** turns green and receives the payload.
-   * **Normalize Order Payload** normalizes names, phone, and timestamps.
-   * **HubSpot Upsert Contact** updates or creates the contact in HubSpot.
-   * **HubSpot Create Deal** creates the deal and links it to the contact.
-   * **Respond 202 Accepted** returns HTTP `202 Accepted` to the client.
+### What the Test Suite Proves (5 Automated Checks)
+| Test Scenario | Payload Condition | Expected HTTP Status | Expected Behavior |
+|---|---|---|---|
+| **1. Valid Order Submission** | Canonical Stage 2 payload + Valid HMAC | `HTTP 202 Accepted` | Creates Contact & Deal, links Deal to Contact |
+| **2. Cryptographic Tampering** | Corrupted / Forged HMAC signature | `HTTP 401 Unauthorized` | Rejects payload with `{"error": "Unauthorized"}` |
+| **3. Mathematical Integrity** | `sum(items.qty * price) !== total` | `HTTP 422 Unprocessable` | Rejects payload with calculation discrepancy notice |
+| **4. Idempotency Guard** | Re-dispatch identical `order_id` | `HTTP 200 OK` | Responds with `{"duplicate": true}` without duplicate deals |
+| **5. Schema Validation** | Missing `customer.email` or `order_id` | `HTTP 422 Unprocessable` | Rejects invalid payloads before CRM invocation |
 
 ---
 
-## 6. How the Error Notification Workflow Works
+## 6. Manual Testing via cURL
+
+To manually test the workflow with a valid signed order payload:
+
+```bash
+BODY='{"event":"order.created","order_id":"ORD-N8N-101","created_at":"2026-10-05T14:32:00+08:00","customer":{"email":"maria.santos@example.com","first_name":"Maria","last_name":"Santos","phone":"+639171234567"},"items":[{"sku":"TSH-BLK-M","name":"Black Tee (M)","qty":2,"price":450.00}],"currency":"PHP","total":900.00}'
+SIG=$(printf "%s" "$BODY" | openssl dgst -sha256 -hmac "stage2_secret_key_super_secure_99" | awk '{print $2}')
+
+curl -X POST "http://localhost:5678/webhook/orders" \
+  -H "Content-Type: application/json" \
+  -H "X-Webhook-Signature: $SIG" \
+  -d "$BODY"
+```
+
+---
+
+## 7. How the Error Notification Workflow Works
 
 1. The workflow includes an **Error Trigger** node connected to **Notify On Failure**.
 2. If any node fails (e.g. invalid HubSpot token, rate limit, or invalid data):
@@ -128,7 +147,7 @@ curl -X POST "http://localhost:5678/webhook-test/orders" \
 
 ---
 
-## 7. Frequently Asked Questions & Diagnostics
+## 8. Frequently Asked Questions & Diagnostics
 
 ### Q: Why do startup logs say `Failed to start Python task runner in internal mode`?
 ```text

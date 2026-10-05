@@ -1,6 +1,6 @@
 # HubSpot Order Sync: Integration Pipeline
 
-[![Version](https://img.shields.io/badge/version-v1.1.13-blue.svg)](VERSION)
+[![Version](https://img.shields.io/badge/version-v1.2.0-blue.svg)](VERSION)
 [![SemVer](https://img.shields.io/badge/SemVer-2.0.0-green.svg)](https://semver.org)
 [![Node.js](https://img.shields.io/badge/Node.js-20%2B%20%7C%2022-339933.svg?logo=node.js)](receiver/)
 [![Fastify](https://img.shields.io/badge/Fastify-4.x-black.svg?logo=fastify)](receiver/)
@@ -265,6 +265,7 @@ Run comprehensive test suites covering unit, integration, and regression tiers:
 ```bash
 # In receiver/ directory:
 npm test
+npm run test:n8n   # Automated n8n workflow validation & logic proof
 
 # In web/ directory:
 npm test

@@ -46,6 +46,8 @@ services:
       - N8N_RUNNERS_TASK_TIMEOUT=300
       - N8N_COMPRESSION_NODE_MAX_DECOMPRESSED_SIZE_BYTES=2147483648
       - N8N_COMPRESSION_NODE_MAX_ZIP_ENTRIES=5000
+      - NODE_FUNCTION_ALLOW_BUILTIN=crypto
+      - WEBHOOK_SECRET=${WEBHOOK_SECRET:-stage2_secret_key_super_secure_99}
     volumes:
       - n8n-data:/home/node/.n8n
 

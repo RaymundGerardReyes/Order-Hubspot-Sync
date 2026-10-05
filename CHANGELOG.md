@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.2.0] - 2026-10-05
+
+### Added
+- **n8n Automated Workflow Validation & Test Suite (`scripts/test-n8n.ts`, `receiver/package.json`)**: Added automated end-to-end test harness verifying 5 core scenarios against n8n: valid HMAC delivery (202), cryptographic tampering (401), math validation discrepancies (422), sequential duplicate idempotency (200 duplicate: true), and missing schema fields. Added `npm run test:n8n` command.
+- **n8n Full Validation & Idempotency Upgrades (`n8n/order-to-hubspot.json`, `docker-compose.yml`)**: Enhanced workflow with built-in timing-safe HMAC-SHA256 signature verification, mathematical line-item summation checks, HubSpot CRM deal search for idempotency prevention, and status-coded response routing (401, 422, 200 duplicate, 202 accepted). Enabled Node `crypto` access in Docker Compose.
+
 ## [v1.1.13] - 2026-10-03
 
 ### Changed

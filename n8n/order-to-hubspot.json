@@ -1,78 +1,195 @@
 {
-  "name": "Order to HubSpot Sync with Error Handling",
+  "name": "Order to HubSpot Sync with Full Validation & Idempotency",
   "nodes": [
     {
       "parameters": {
         "httpMethod": "POST",
         "path": "orders",
         "responseMode": "responseNode",
-        "options": {}
+        "options": {
+          "rawBody": true
+        }
       },
       "id": "node-webhook-ingress",
       "name": "Order Webhook Trigger",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [200, 300],
+      "position": [160, 360],
       "webhookId": "order-sync-webhook"
     },
     {
       "parameters": {
-        "jsCode": "const body = $json.body || $json;\n\n// Support both brief sample payload and camelCase aliases\nconst orderId = body.order_id || body.orderId;\nconst customer = body.customer || {};\nconst email = customer.email || body.customer_email;\n\nlet firstName = customer.first_name || '';\nlet lastName = customer.last_name || '';\nlet fullName = customer.name || body.customer_name || '';\n\nif (!firstName && !lastName && fullName) {\n  const parts = fullName.split(' ');\n  firstName = parts[0] || '';\n  lastName = parts.slice(1).join(' ') || '';\n} else if (!fullName && (firstName || lastName)) {\n  fullName = `${firstName} ${lastName}`.trim();\n}\n\nconst total = body.total !== undefined ? body.total : (body.total_amount !== undefined ? body.total_amount : body.totalAmount || 0);\nconst currency = body.currency || 'USD';\nconst phone = customer.phone || '';\nconst createdAt = body.created_at || body.createdAt || new Date().toISOString();\n\nreturn [{\n  json: {\n    orderId,\n    email,\n    firstName,\n    lastName,\n    fullName,\n    phone,\n    total: String(total),\n    currency,\n    createdAt\n  }\n}];"
+        "jsCode": "const crypto = require('crypto');\n\nconst headers = $json.headers || {};\nconst body = $json.body || $json;\nconst rawBody = $json.rawBody || JSON.stringify(body);\n\n// 1. Signature Verification (Req 22)\nconst secret = $env.WEBHOOK_SECRET || 'stage2_secret_key_super_secure_99';\nconst incomingSig = headers['x-webhook-signature'] || headers['x-signature'] || '';\nconst expectedSig = crypto.createHmac('sha256', secret).update(rawBody).digest('hex');\n\nconst cleanIncoming = incomingSig.startsWith('sha256=') ? incomingSig.slice(7) : incomingSig;\n\nlet isSignatureValid = false;\ntry {\n  if (cleanIncoming && cleanIncoming.length === expectedSig.length) {\n    isSignatureValid = crypto.timingSafeEqual(Buffer.from(cleanIncoming, 'hex'), Buffer.from(expectedSig, 'hex'));\n  }\n} catch {\n  isSignatureValid = false;\n}\n\nif (!incomingSig || !isSignatureValid) {\n  return [{\n    json: {\n      validationStatus: 'INVALID_HMAC',\n      httpCode: 401,\n      errorResponse: {\n        error: 'Unauthorized',\n        message: 'Signature hash mismatch'\n      }\n    }\n  }];\n}\n\n// 2. Schema & Mathematical Validation (Req 22)\nconst orderId = body.order_id || body.orderId;\nconst customer = body.customer || {};\nconst email = customer.email || body.customer_email;\nconst items = Array.isArray(body.items) ? body.items : [];\nconst total = Number(body.total !== undefined ? body.total : (body.total_amount !== undefined ? body.total_amount : body.totalAmount));\n\nif (!orderId || typeof orderId !== 'string') {\n  return [{\n    json: {\n      validationStatus: 'INVALID_SCHEMA',\n      httpCode: 422,\n      errorResponse: {\n        error: 'Unprocessable Entity',\n        message: 'Validation failed: order_id is required'\n      }\n    }\n  }];\n}\n\nif (!email || !email.includes('@')) {\n  return [{\n    json: {\n      validationStatus: 'INVALID_SCHEMA',\n      httpCode: 422,\n      errorResponse: {\n        error: 'Unprocessable Entity',\n        message: 'Validation failed: customer.email is required and must be valid'\n      }\n    }\n  }];\n}\n\n// Math Check: sum(qty * price) === total\nif (items.length > 0) {\n  const calculatedSum = items.reduce((acc, item) => {\n    const qty = Number(item.qty || item.quantity || 0);\n    const price = Number(item.price || item.unit_price || item.unitPrice || 0);\n    return acc + (qty * price);\n  }, 0);\n\n  const diff = Math.abs(calculatedSum - total);\n  if (diff > 0.01) {\n    return [{\n      json: {\n        validationStatus: 'INVALID_SCHEMA',\n        httpCode: 422,\n        errorResponse: {\n          error: 'Unprocessable Entity',\n          message: `Math validation failed: total ${total} does not match items sum ${calculatedSum.toFixed(2)}`\n        }\n      }\n    }];\n  }\n}\n\nlet firstName = customer.first_name || '';\nlet lastName = customer.last_name || '';\nlet fullName = customer.name || body.customer_name || '';\n\nif (!firstName && !lastName && fullName) {\n  const parts = fullName.split(' ');\n  firstName = parts[0] || '';\n  lastName = parts.slice(1).join(' ') || '';\n} else if (!fullName && (firstName || lastName)) {\n  fullName = `${firstName} ${lastName}`.trim();\n}\n\nreturn [{\n  json: {\n    validationStatus: 'VALID',\n    normalizedPayload: {\n      orderId,\n      email,\n      firstName,\n      lastName,\n      fullName,\n      phone: customer.phone || '',\n      total: String(total || 0),\n      currency: body.currency || 'USD',\n      createdAt: body.created_at || body.createdAt || new Date().toISOString()\n    }\n  }\n}];"
       },
-      "id": "node-normalize-payload",
-      "name": "Normalize Order Payload",
+      "id": "node-validate-order",
+      "name": "Validate HMAC & Schema",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [420, 300]
+      "position": [380, 360]
+    },
+    {
+      "parameters": {
+        "dataType": "string",
+        "value1": "={{ $json.validationStatus }}",
+        "rules": {
+          "rules": [
+            {
+              "value2": "INVALID_HMAC"
+            },
+            {
+              "value2": "INVALID_SCHEMA"
+            },
+            {
+              "value2": "VALID"
+            }
+          ]
+        }
+      },
+      "id": "node-switch-validation",
+      "name": "Check Validation Status",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 1,
+      "position": [600, 360]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json.errorResponse }}",
+        "options": {
+          "responseCode": 401
+        }
+      },
+      "id": "node-respond-401",
+      "name": "Respond 401 Unauthorized",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [840, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json.errorResponse }}",
+        "options": {
+          "responseCode": 422
+        }
+      },
+      "id": "node-respond-422",
+      "name": "Respond 422 Unprocessable Entity",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [840, 340]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.hubapi.com/crm/v3/objects/deals/search",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.HUBSPOT_ACCESS_TOKEN }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"filterGroups\": [\n    {\n      \"filters\": [\n        {\n          \"propertyName\": \"dealname\",\n          \"operator\": \"CONTAINS_TOKEN\",\n          \"value\": \"{{ $json.normalizedPayload.orderId }}\"\n        }\n      ]\n    }\n  ],\n  \"properties\": [\"dealname\", \"amount\", \"dealstage\", \"external_order_id\"],\n  \"limit\": 1\n}",
+        "options": {
+          "continueOnFail": true
+        }
+      },
+      "id": "node-hubspot-search-deal",
+      "name": "HubSpot Search Deal",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [840, 480]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.total || 0 }}",
+              "operation": "larger",
+              "value2": 0
+            }
+          ]
+        }
+      },
+      "id": "node-if-duplicate",
+      "name": "Check Duplicate Deal",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1060, 480]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"duplicate\": true,\n  \"status\": \"succeeded\",\n  \"message\": \"Order already processed.\",\n  \"orderId\": \"{{ $('Validate HMAC & Schema').item.json.normalizedPayload.orderId }}\",\n  \"dealId\": \"{{ $json.results && $json.results[0] ? $json.results[0].id : '' }}\"\n}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "node-respond-200-duplicate",
+      "name": "Respond 200 Duplicate",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1300, 380]
     },
     {
       "parameters": {
         "resource": "contact",
         "operation": "upsert",
-        "email": "={{ $json.email }}",
+        "email": "={{ $('Validate HMAC & Schema').item.json.normalizedPayload.email }}",
         "additionalFields": {
-          "firstName": "={{ $json.firstName }}",
-          "lastName": "={{ $json.lastName }}",
-          "phone": "={{ $json.phone }}"
+          "firstName": "={{ $('Validate HMAC & Schema').item.json.normalizedPayload.firstName }}",
+          "lastName": "={{ $('Validate HMAC & Schema').item.json.normalizedPayload.lastName }}",
+          "phone": "={{ $('Validate HMAC & Schema').item.json.normalizedPayload.phone }}"
         }
       },
       "id": "node-hubspot-contact",
       "name": "HubSpot Upsert Contact",
       "type": "n8n-nodes-base.hubspot",
       "typeVersion": 1,
-      "position": [640, 300]
+      "position": [1300, 580]
     },
     {
       "parameters": {
         "resource": "deal",
         "operation": "create",
-        "dealName": "=Order #{{ $('Normalize Order Payload').item.json.orderId }} - {{ $('Normalize Order Payload').item.json.fullName }}",
+        "dealName": "=Order #{{ $('Validate HMAC & Schema').item.json.normalizedPayload.orderId }} - {{ $('Validate HMAC & Schema').item.json.normalizedPayload.fullName }}",
         "stage": "closedwon",
         "pipeline": "default",
         "additionalFields": {
-          "amount": "={{ $('Normalize Order Payload').item.json.total }}",
-          "closeDate": "={{ $('Normalize Order Payload').item.json.createdAt }}"
+          "amount": "={{ $('Validate HMAC & Schema').item.json.normalizedPayload.total }}",
+          "closeDate": "={{ $('Validate HMAC & Schema').item.json.normalizedPayload.createdAt }}"
         }
       },
       "id": "node-hubspot-deal",
       "name": "HubSpot Create Deal",
       "type": "n8n-nodes-base.hubspot",
       "typeVersion": 1,
-      "position": [860, 300]
+      "position": [1520, 580]
     },
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={\n  \"status\": \"accepted\",\n  \"orderId\": \"{{ $('Normalize Order Payload').item.json.orderId }}\",\n  \"dealId\": \"{{ $json.id }}\",\n  \"contactId\": \"{{ $('HubSpot Upsert Contact').item.json.id }}\"\n}",
+        "responseBody": "={\n  \"status\": \"accepted\",\n  \"message\": \"Order accepted for processing.\",\n  \"orderId\": \"{{ $('Validate HMAC & Schema').item.json.normalizedPayload.orderId }}\",\n  \"dealId\": \"{{ $json.id }}\",\n  \"contactId\": \"{{ $('HubSpot Upsert Contact').item.json.id }}\"\n}",
         "options": {
           "responseCode": 202
         }
       },
-      "id": "node-respond-webhook",
+      "id": "node-respond-202-accepted",
       "name": "Respond 202 Accepted",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [1080, 300]
+      "position": [1740, 580]
     },
     {
       "parameters": {},
@@ -80,7 +197,7 @@
       "name": "Error Trigger",
       "type": "n8n-nodes-base.errorTrigger",
       "typeVersion": 1,
-      "position": [200, 520]
+      "position": [160, 720]
     },
     {
       "parameters": {
@@ -94,7 +211,7 @@
       "name": "Notify On Failure",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [440, 520]
+      "position": [380, 720]
     }
   ],
   "connections": {
@@ -102,15 +219,69 @@
       "main": [
         [
           {
-            "node": "Normalize Order Payload",
+            "node": "Validate HMAC & Schema",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Normalize Order Payload": {
+    "Validate HMAC & Schema": {
       "main": [
+        [
+          {
+            "node": "Check Validation Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Validation Status": {
+      "main": [
+        [
+          {
+            "node": "Respond 401 Unauthorized",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond 422 Unprocessable Entity",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "HubSpot Search Deal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HubSpot Search Deal": {
+      "main": [
+        [
+          {
+            "node": "Check Duplicate Deal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Duplicate Deal": {
+      "main": [
+        [
+          {
+            "node": "Respond 200 Duplicate",
+            "type": "main",
+            "index": 0
+          }
+        ],
         [
           {
             "node": "HubSpot Upsert Contact",
@@ -146,7 +317,7 @@
       "main": [
         [
           {
-            "node": "Notify Failure",
+            "node": "Notify On Failure",
             "type": "main",
             "index": 0
           }

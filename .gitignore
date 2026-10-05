@@ -9,6 +9,7 @@ backend/vendor/
 scripts/*
 !scripts/mock-webhook.ts
 !scripts/send-curl.sh
+!scripts/test-n8n.ts
 
 # Local workspace governance, scaffolding, and developer documentation (local only, do not track remotely)
 AGENTS.md
