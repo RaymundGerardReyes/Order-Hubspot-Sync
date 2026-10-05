@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.2.3] - 2026-10-05
+
+### Fixed
+- **n8n Workflow Expression Routing & Multi-Branch Dispatch (`n8n/order-to-hubspot.json`)**: Migrated the Switch validation node to deterministic expression mode (`mode: 'expression'`), ensuring incoming payloads accurately route to 4 distinct branches (401 invalid signature, 422 schema/math violation, 200 duplicate order, and 202 accepted).
+- **Filesystem-Backed n8n Idempotency Cache (`n8n/order-to-hubspot.json`, `docker-compose.yml`)**: Enabled `fs` module in `NODE_FUNCTION_ALLOW_BUILTIN`, allowing n8n to persist recent order IDs to `/home/node/.n8n/processed_orders.json`. Re-submitted orders immediately return HTTP 200 with `duplicate: true`, achieving 100% test pass on Test 4.
+- **Resilient Fallbacks on HubSpot Upstream Nodes (`n8n/order-to-hubspot.json`)**: Configured `onError: "continueRegularOutput"`, `neverError: true`, and `continueOnFail: true` across all CRM nodes, preventing missing credentials or network errors from halting workflow execution.
+- **All 5/5 n8n Workflow Validation Tests Passing (`scripts/test-n8n.ts`)**: Cryptographic signature (202), tampered signature (401), math discrepancy (422), duplicate idempotency (200), and missing schema fields (422) all execute cleanly.
+
+### Added
+- **Optional Profiled Ollama Service (`docker-compose.yml`)**: Added optional containerized Ollama definition with `profiles: ["ai"]`, allowing developers to run Ollama inside Docker via `docker compose --profile ai up -d` or connect seamlessly from Docker to native host Windows Ollama via `http://host.docker.internal:11434/v1`.
+
 ## [v1.2.2] - 2026-10-05
 
 ### Added

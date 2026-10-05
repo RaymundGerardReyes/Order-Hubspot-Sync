@@ -46,11 +46,27 @@ services:
       - N8N_RUNNERS_TASK_TIMEOUT=300
       - N8N_COMPRESSION_NODE_MAX_DECOMPRESSED_SIZE_BYTES=2147483648
       - N8N_COMPRESSION_NODE_MAX_ZIP_ENTRIES=5000
-      - NODE_FUNCTION_ALLOW_BUILTIN=crypto
+      - NODE_FUNCTION_ALLOW_BUILTIN=crypto,fs
+      - N8N_BLOCK_ENV_ACCESS_IN_NODE=false
       - WEBHOOK_SECRET=${WEBHOOK_SECRET:-stage2_secret_key_super_secure_99}
+      - HUBSPOT_ACCESS_TOKEN=${HUBSPOT_ACCESS_TOKEN}
     volumes:
       - n8n-data:/home/node/.n8n
+
+  # Optional Containerized Ollama (Use 'docker compose --profile ai up -d' if not using Windows host Ollama)
+  ollama:
+    image: ollama/ollama:latest
+    container_name: order_sync_ollama
+    restart: unless-stopped
+    ports:
+      - "${OLLAMA_PORT:-11434}:11434"
+    volumes:
+      - ollama-data:/root/.ollama
+    profiles:
+      - ai
 
 volumes:
   sqlite-data:
   n8n-data:
+  ollama-data:
+

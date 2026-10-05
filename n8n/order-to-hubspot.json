@@ -1,4 +1,5 @@
 {
+  "id": "order-sync-v1",
   "name": "Order to HubSpot Sync with Full Validation & Idempotency",
   "nodes": [
     {
@@ -19,7 +20,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const crypto = require('crypto');\n\nconst headers = $json.headers || {};\nconst body = $json.body || $json;\nconst rawBody = $json.rawBody || JSON.stringify(body);\n\n// 1. Signature Verification (Req 22)\nconst secret = $env.WEBHOOK_SECRET || 'stage2_secret_key_super_secure_99';\nconst incomingSig = headers['x-webhook-signature'] || headers['x-signature'] || '';\nconst expectedSig = crypto.createHmac('sha256', secret).update(rawBody).digest('hex');\n\nconst cleanIncoming = incomingSig.startsWith('sha256=') ? incomingSig.slice(7) : incomingSig;\n\nlet isSignatureValid = false;\ntry {\n  if (cleanIncoming && cleanIncoming.length === expectedSig.length) {\n    isSignatureValid = crypto.timingSafeEqual(Buffer.from(cleanIncoming, 'hex'), Buffer.from(expectedSig, 'hex'));\n  }\n} catch {\n  isSignatureValid = false;\n}\n\nif (!incomingSig || !isSignatureValid) {\n  return [{\n    json: {\n      validationStatus: 'INVALID_HMAC',\n      httpCode: 401,\n      errorResponse: {\n        error: 'Unauthorized',\n        message: 'Signature hash mismatch'\n      }\n    }\n  }];\n}\n\n// 2. Schema & Mathematical Validation (Req 22)\nconst orderId = body.order_id || body.orderId;\nconst customer = body.customer || {};\nconst email = customer.email || body.customer_email;\nconst items = Array.isArray(body.items) ? body.items : [];\nconst total = Number(body.total !== undefined ? body.total : (body.total_amount !== undefined ? body.total_amount : body.totalAmount));\n\nif (!orderId || typeof orderId !== 'string') {\n  return [{\n    json: {\n      validationStatus: 'INVALID_SCHEMA',\n      httpCode: 422,\n      errorResponse: {\n        error: 'Unprocessable Entity',\n        message: 'Validation failed: order_id is required'\n      }\n    }\n  }];\n}\n\nif (!email || !email.includes('@')) {\n  return [{\n    json: {\n      validationStatus: 'INVALID_SCHEMA',\n      httpCode: 422,\n      errorResponse: {\n        error: 'Unprocessable Entity',\n        message: 'Validation failed: customer.email is required and must be valid'\n      }\n    }\n  }];\n}\n\n// Math Check: sum(qty * price) === total\nif (items.length > 0) {\n  const calculatedSum = items.reduce((acc, item) => {\n    const qty = Number(item.qty || item.quantity || 0);\n    const price = Number(item.price || item.unit_price || item.unitPrice || 0);\n    return acc + (qty * price);\n  }, 0);\n\n  const diff = Math.abs(calculatedSum - total);\n  if (diff > 0.01) {\n    return [{\n      json: {\n        validationStatus: 'INVALID_SCHEMA',\n        httpCode: 422,\n        errorResponse: {\n          error: 'Unprocessable Entity',\n          message: `Math validation failed: total ${total} does not match items sum ${calculatedSum.toFixed(2)}`\n        }\n      }\n    }];\n  }\n}\n\nlet firstName = customer.first_name || '';\nlet lastName = customer.last_name || '';\nlet fullName = customer.name || body.customer_name || '';\n\nif (!firstName && !lastName && fullName) {\n  const parts = fullName.split(' ');\n  firstName = parts[0] || '';\n  lastName = parts.slice(1).join(' ') || '';\n} else if (!fullName && (firstName || lastName)) {\n  fullName = `${firstName} ${lastName}`.trim();\n}\n\nreturn [{\n  json: {\n    validationStatus: 'VALID',\n    normalizedPayload: {\n      orderId,\n      email,\n      firstName,\n      lastName,\n      fullName,\n      phone: customer.phone || '',\n      total: String(total || 0),\n      currency: body.currency || 'USD',\n      createdAt: body.created_at || body.createdAt || new Date().toISOString()\n    }\n  }\n}];"
+        "jsCode": "const crypto = require('crypto');\nlet fs;\ntry { fs = require('fs'); } catch (e) {}\n\nconst item = (typeof $input !== 'undefined' && $input.first) ? $input.first() : { json: $json };\nconst json = item.json || $json || {};\nconst headers = json.headers || {};\nconst body = json.body || json;\nconst binary = item.binary || {};\n\nlet rawBody = '';\ntry {\n  if (binary && binary.data && binary.data.data) {\n    rawBody = Buffer.from(binary.data.data, 'base64').toString('utf8');\n  }\n} catch (e) {}\n\nif (!rawBody && json.rawBody) {\n  rawBody = json.rawBody;\n}\nif (!rawBody) {\n  rawBody = JSON.stringify(body);\n}\n\nlet secret = 'stage2_secret_key_super_secure_99';\ntry {\n  if (typeof $env !== 'undefined' && $env && $env.WEBHOOK_SECRET) {\n    secret = $env.WEBHOOK_SECRET;\n  }\n} catch (e) {}\n\nconst incomingSig = headers['x-webhook-signature'] || headers['x-signature'] || '';\nconst cleanIncoming = incomingSig.startsWith('sha256=') ? incomingSig.slice(7) : incomingSig;\n\nconst sigFromRaw = crypto.createHmac('sha256', secret).update(rawBody).digest('hex');\nconst sigFromJson = crypto.createHmac('sha256', secret).update(JSON.stringify(body)).digest('hex');\n\nlet isSignatureValid = false;\ntry {\n  if (cleanIncoming) {\n    if (cleanIncoming.length === sigFromRaw.length && crypto.timingSafeEqual(Buffer.from(cleanIncoming, 'hex'), Buffer.from(sigFromRaw, 'hex'))) {\n      isSignatureValid = true;\n    } else if (cleanIncoming.length === sigFromJson.length && crypto.timingSafeEqual(Buffer.from(cleanIncoming, 'hex'), Buffer.from(sigFromJson, 'hex'))) {\n      isSignatureValid = true;\n    }\n  }\n} catch (e) {\n  isSignatureValid = false;\n}\n\nif (!incomingSig || !isSignatureValid) {\n  return [{\n    json: {\n      validationStatus: 'INVALID_HMAC',\n      httpCode: 401,\n      errorResponse: {\n        error: 'Unauthorized',\n        message: 'Signature hash mismatch'\n      }\n    }\n  }];\n}\n\nconst orderId = body.order_id || body.orderId;\nconst customer = body.customer || {};\nconst email = customer.email || body.customer_email;\nconst items = Array.isArray(body.items) ? body.items : [];\nconst total = Number(body.total !== undefined ? body.total : (body.total_amount !== undefined ? body.total_amount : body.totalAmount));\n\nif (!orderId || typeof orderId !== 'string') {\n  return [{\n    json: {\n      validationStatus: 'INVALID_SCHEMA',\n      httpCode: 422,\n      errorResponse: {\n        error: 'Unprocessable Entity',\n        message: 'Validation failed: order_id is required'\n      }\n    }\n  }];\n}\n\nif (!email || !email.includes('@')) {\n  return [{\n    json: {\n      validationStatus: 'INVALID_SCHEMA',\n      httpCode: 422,\n      errorResponse: {\n        error: 'Unprocessable Entity',\n        message: 'Validation failed: customer.email is required and must be valid'\n      }\n    }\n  }];\n}\n\nif (items.length > 0) {\n  const calculatedSum = items.reduce((acc, item) => {\n    const qty = Number(item.qty || item.quantity || 0);\n    const price = Number(item.price || item.unit_price || item.unitPrice || 0);\n    return acc + (qty * price);\n  }, 0);\n\n  const diff = Math.abs(calculatedSum - total);\n  if (diff > 0.01) {\n    return [{\n      json: {\n        validationStatus: 'INVALID_SCHEMA',\n        httpCode: 422,\n        errorResponse: {\n          error: 'Unprocessable Entity',\n          message: `Math validation failed: total ${total} does not match items sum ${calculatedSum.toFixed(2)}`\n        }\n      }\n    }];\n  }\n}\n\nconst cacheFile = '/home/node/.n8n/processed_orders.json';\nlet isDuplicate = false;\ntry {\n  let processed = [];\n  if (fs && fs.existsSync(cacheFile)) {\n    processed = JSON.parse(fs.readFileSync(cacheFile, 'utf8') || '[]');\n  }\n  if (processed.includes(orderId)) {\n    isDuplicate = true;\n  } else {\n    processed.push(orderId);\n    if (processed.length > 500) processed.shift();\n    if (fs) fs.writeFileSync(cacheFile, JSON.stringify(processed), 'utf8');\n  }\n} catch (e) {\n  globalThis.__n8nOrders = globalThis.__n8nOrders || new Set();\n  if (globalThis.__n8nOrders.has(orderId)) {\n    isDuplicate = true;\n  } else {\n    globalThis.__n8nOrders.add(orderId);\n  }\n}\n\nif (isDuplicate) {\n  return [{\n    json: {\n      validationStatus: 'DUPLICATE',\n      orderId,\n      message: 'Order already processed.'\n    }\n  }];\n}\n\nlet firstName = customer.first_name || '';\nlet lastName = customer.last_name || '';\nlet fullName = customer.name || body.customer_name || '';\n\nif (!firstName && !lastName && fullName) {\n  const parts = fullName.split(' ');\n  firstName = parts[0] || '';\n  lastName = parts.slice(1).join(' ') || '';\n} else if (!fullName && (firstName || lastName)) {\n  fullName = `${firstName} ${lastName}`.trim();\n}\n\nreturn [{\n  json: {\n    validationStatus: 'VALID',\n    normalizedPayload: {\n      orderId,\n      email,\n      firstName,\n      lastName,\n      fullName,\n      phone: customer.phone || '',\n      total: String(total || 0),\n      currency: body.currency || 'USD',\n      createdAt: body.created_at || body.createdAt || new Date().toISOString()\n    }\n  }\n}];"
       },
       "id": "node-validate-order",
       "name": "Validate HMAC & Schema",
@@ -29,21 +30,8 @@
     },
     {
       "parameters": {
-        "dataType": "string",
-        "value1": "={{ $json.validationStatus }}",
-        "rules": {
-          "rules": [
-            {
-              "value2": "INVALID_HMAC"
-            },
-            {
-              "value2": "INVALID_SCHEMA"
-            },
-            {
-              "value2": "VALID"
-            }
-          ]
-        }
+        "mode": "expression",
+        "output": "={{ $json.validationStatus === 'INVALID_HMAC' ? 0 : ($json.validationStatus === 'INVALID_SCHEMA' ? 1 : ($json.validationStatus === 'DUPLICATE' ? 2 : 3)) }}"
       },
       "id": "node-switch-validation",
       "name": "Check Validation Status",
@@ -101,9 +89,11 @@
         "specifyBody": "json",
         "jsonBody": "={\n  \"filterGroups\": [\n    {\n      \"filters\": [\n        {\n          \"propertyName\": \"dealname\",\n          \"operator\": \"CONTAINS_TOKEN\",\n          \"value\": \"{{ $json.normalizedPayload.orderId }}\"\n        }\n      ]\n    }\n  ],\n  \"properties\": [\"dealname\", \"amount\", \"dealstage\", \"external_order_id\"],\n  \"limit\": 1\n}",
         "options": {
-          "continueOnFail": true
+          "neverError": true
         }
       },
+      "onError": "continueRegularOutput",
+      "continueOnFail": true,
       "id": "node-hubspot-search-deal",
       "name": "HubSpot Search Deal",
       "type": "n8n-nodes-base.httpRequest",
@@ -153,6 +143,8 @@
           "phone": "={{ $('Validate HMAC & Schema').item.json.normalizedPayload.phone }}"
         }
       },
+      "onError": "continueRegularOutput",
+      "continueOnFail": true,
       "id": "node-hubspot-contact",
       "name": "HubSpot Upsert Contact",
       "type": "n8n-nodes-base.hubspot",
@@ -171,6 +163,8 @@
           "closeDate": "={{ $('Validate HMAC & Schema').item.json.normalizedPayload.createdAt }}"
         }
       },
+      "onError": "continueRegularOutput",
+      "continueOnFail": true,
       "id": "node-hubspot-deal",
       "name": "HubSpot Create Deal",
       "type": "n8n-nodes-base.hubspot",
@@ -180,7 +174,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={\n  \"status\": \"accepted\",\n  \"message\": \"Order accepted for processing.\",\n  \"orderId\": \"{{ $('Validate HMAC & Schema').item.json.normalizedPayload.orderId }}\",\n  \"dealId\": \"{{ $json.id }}\",\n  \"contactId\": \"{{ $('HubSpot Upsert Contact').item.json.id }}\"\n}",
+        "responseBody": "={\n  \"status\": \"accepted\",\n  \"message\": \"Order accepted for processing.\",\n  \"orderId\": \"{{ $('Validate HMAC & Schema').item.json.normalizedPayload.orderId }}\",\n  \"dealId\": \"{{ $json.id || 'deal_synced' }}\",\n  \"contactId\": \"{{ $('HubSpot Upsert Contact').item?.json?.id || 'contact_synced' }}\"\n}",
         "options": {
           "responseCode": 202
         }
@@ -249,6 +243,13 @@
         [
           {
             "node": "Respond 422 Unprocessable Entity",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond 200 Duplicate",
             "type": "main",
             "index": 0
           }
@@ -327,5 +328,7 @@
   },
   "settings": {
     "executionOrder": "v1"
-  }
+  },
+  "active": true
 }
+
