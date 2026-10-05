@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.2.2] - 2026-10-05
+
+### Added
+- **n8n AI Credential Configuration & Free / Open-Source Guide (`n8n/README.md`)**: Added clear documentation for configuring n8n's Google Gemini (PaLM) credential modal with official endpoint (`https://generativelanguage.googleapis.com`), free developer key generation via Google AI Studio (`AIzaSy...`), and local air-gapped open-source alternative using Ollama over `http://host.docker.internal:11434/v1`.
+- **n8n Webhook 404 Troubleshooting Guide (`n8n/README.md`)**: Added step-by-step instructions on resolving HTTP 404 webhook registration errors by toggling workflows Active in the n8n canvas.
+
 ## [v1.2.1] - 2026-10-05
 
 ### Fixed

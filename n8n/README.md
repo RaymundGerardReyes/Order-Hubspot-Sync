@@ -173,3 +173,26 @@ N8N_RUNNERS_MODE -> Internal task runner mode is deprecated and will be removed 
 * `N8N_COMPRESSION_NODE_MAX_DECOMPRESSED_SIZE_BYTES=2147483648`
 * `N8N_COMPRESSION_NODE_MAX_ZIP_ENTRIES=5000`
 This keeps future defaults locked to expected limits and silences startup deprecation notices.
+
+### Q: What is the "Connect a model" / "Google Gemini (PaLM) Api" modal, and is it required?
+* **Status**: Optional developer copilot feature.
+* **Is it required for this project?**: **No**. The Stage 2 order integration pipeline (`order-to-hubspot.json`) is **100% deterministic code** using standard Node.js crypto and HubSpot CRM nodes. It executes without any AI models or API tokens.
+* **If you want to use the AI Assistant for free**:
+  * **Option A: Free Google Gemini (Google AI Studio)**:
+    - **Host**: `https://generativelanguage.googleapis.com`
+    - **API Key**: Obtain a 100% free developer API key from [Google AI Studio](https://aistudio.google.com/) (starts with `AIzaSy...`, zero credit card required, 15 RPM free tier).
+    - **Allowed HTTP Request Domains**: Leave empty.
+  * **Option B: 100% Open-Source Local (Ollama)**:
+    - Install [Ollama](https://ollama.com/) on Windows.
+    - Run `ollama run qwen2.5-coder:1.5b`.
+    - In n8n, select the Ollama or OpenAI-compatible node with Base URL `http://host.docker.internal:11434/v1`.
+
+### Q: Why did `npm run test:n8n` return `404: The requested webhook "POST orders" is not registered`?
+* **Cause**: n8n production webhook endpoints (`/webhook/*`) are only active when the workflow is explicitly turned **Active**.
+* **Solution**:
+  1. Open n8n at `http://localhost:5678`.
+  2. Open the workflow (`Order to HubSpot Sync with Full Validation`).
+  3. In the top-right corner of the canvas, switch the **Active** toggle to **ON** (green).
+  4. Save the workflow (`Ctrl + S`).
+  5. Re-run `npm run test:n8n`.
+
