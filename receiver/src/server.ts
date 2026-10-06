@@ -12,6 +12,8 @@ import { getDb } from './db/connection.js';
 
 export interface ServerOptions {
   config: ApiConfig;
+  hubspotClient?: HubSpotClient;
+  syncService?: SyncService;
 }
 
 export function buildServer(options: ServerOptions): FastifyInstance {
@@ -36,18 +38,20 @@ export function buildServer(options: ServerOptions): FastifyInstance {
   runMigrations();
 
   // Build HubSpot service graph
-  const hubspotClient = new HubSpotClient({
-    accessToken: config.hubspotAccessToken,
-    timeoutMs: config.hubspotRequestTimeoutMs,
-    maxAttempts: config.hubspotMaxAttempts,
-  });
+  const hubspotClient =
+    options.hubspotClient ??
+    new HubSpotClient({
+      accessToken: config.hubspotAccessToken,
+      timeoutMs: config.hubspotRequestTimeoutMs,
+      maxAttempts: config.hubspotMaxAttempts,
+    });
   const hubspotRepo = new HubSpotRepository(
     hubspotClient,
     config.hubspotPipelineId,
     config.hubspotDealStageId,
     config.hubspotOrderIdProperty
   );
-  const syncService = new SyncService(hubspotRepo);
+  const syncService = options.syncService ?? new SyncService(hubspotRepo);
 
   // ─── Preserve raw body for accurate HMAC computation (Req 22) ────────────
   app.addContentTypeParser(
@@ -73,6 +77,11 @@ export function buildServer(options: ServerOptions): FastifyInstance {
 
   // ─── POST /webhooks/orders (Req 22 + 23 + 24 + 25 + 26) ─────────────────
   app.post('/webhooks/orders', async (request, reply) => {
+    const contentType = (request.headers['content-type'] ?? '') as string;
+    if (!contentType.includes('application/json')) {
+      return reply.status(415).send({ error: 'Unsupported Media Type', message: 'Content-Type must be application/json' });
+    }
+
     const rawBuffer = request.body as Buffer;
     if (!rawBuffer || rawBuffer.length === 0) {
       return reply.status(400).send({ error: 'Empty payload body' });
@@ -176,7 +185,8 @@ export function buildServer(options: ServerOptions): FastifyInstance {
   // ─── GET /api/sync-attempts (Req 27 dashboard) ───────────────────────────
   const listSyncsHandler = async (request: any, reply: any) => {
     const query = request.query as { limit?: string };
-    const limit = Math.min(parseInt(query.limit ?? '50', 10), 200);
+    const rawLimit = parseInt(query.limit ?? '50', 10);
+    const limit = isNaN(rawLimit) || rawLimit <= 0 ? 50 : Math.min(rawLimit, 200);
 
     const rows = attemptRepo.listRecent(limit);
 
@@ -268,7 +278,7 @@ export function buildServer(options: ServerOptions): FastifyInstance {
     if (order.status === 'succeeded') {
       return reply.status(409).send({
         error: 'Conflict',
-        message: `Order ${orderId} has already been successfully synced.`,
+        message: `Order ${orderId} has already been successfully synced. Only failed attempts can be retried.`,
       });
     }
 

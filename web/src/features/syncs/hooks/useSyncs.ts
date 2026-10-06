@@ -18,6 +18,7 @@ export function useSyncs(pollIntervalMs: number = 5000): UseSyncsReturn {
   const isMountedRef = useRef<boolean>(true);
 
   const refresh = useCallback(async () => {
+    setIsLoading(true);
     try {
       const data = await fetchSyncAttempts({ limit: 50 });
       if (isMountedRef.current) {

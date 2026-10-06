@@ -184,7 +184,7 @@ export const attemptRepo = {
         o.payload_json
       FROM sync_attempts a
       JOIN orders o ON o.order_id = a.order_id
-      ORDER BY a.created_at DESC
+      ORDER BY a.created_at DESC, a.id DESC
       LIMIT ?
     `).all(limit);
   },

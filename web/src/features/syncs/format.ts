@@ -25,7 +25,7 @@ export function formatAmount(amount: number, currency: string = 'USD'): string {
  * Format error message for clean human display, removing raw JSON strings and redundant code prefixes.
  */
 export function formatFailureDetail(message?: string | null, code?: string | null): string {
-  if (!message) return '—';
+  if (!message || !message.trim()) return '—';
 
   let cleaned = message.trim();
 

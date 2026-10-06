@@ -57,6 +57,8 @@ database/*.sqlite-journal
 
 # Testing & coverage
 coverage/
+test-results/
+web/test-results/
 .phpunit.result.cache
 
 # Operating System & IDE files

@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.2.4] - 2026-10-06
+
+### Added
+- **100+ Extended Unit, Integration & End-to-End Test Scenarios (`receiver/test/`, `web/tests/`)**: Expanded automated test suites with 254 new tests (115 Integration/E2E + 139 extended unit tests), elevating total workspace automated tests from 61 to 315 passing tests across 36 test files (100% pass rate).
+- **Backend Webhook Integration Test Suite (`receiver/test/integration/webhook-integration-extended.test.ts`)**: 35 tests covering HTTP method enforcement (404 on GET/PUT/DELETE), Content-Type negotiation (415 on XML), case-insensitive signature headers (`X-Signature`, `X-Webhook-Signature`), deep schema edge cases, arithmetic precision, and database idempotency guards.
+- **Backend API Routes & State Machine Integration Suite (`receiver/test/integration/api-routes-extended.test.ts`)**: 25 tests covering health probes (`/health`, `/healthz`, `/api/health`), sync attempts pagination, state machine transition guards (409 Conflict on non-failed retries, 202 on failed), attempt lineage numbering (`attempt_number` increments, `retry_of` pointers), and preflight CORS.
+- **Full End-to-End Pipeline Integration Suite (`receiver/test/integration/end-to-end-pipeline.test.ts`)**: 15 tests verifying complete Fastify + SQLite + in-memory mock HubSpot CRM lifecycle, contact upserts, deal creation with `external_order_id`, deal-contact associations, upstream failure injection (HTTP 500), and state recovery via manual retry API.
+- **Frontend Dashboard Integration Test Suite (`web/tests/integration/dashboard-comprehensive.integration.test.tsx`)**: 25 tests covering full dashboard rendering lifecycle, MSW API simulation, table accessibility (`scope="col"`, `aria-label`, `aria-busy`), real-time dynamic polling updates, 503 error banner recovery, and retry failure warning alerts.
+- **Frontend User Session & Layout Flow Suite (`web/tests/integration/dashboard-e2e-flows.integration.test.tsx`)**: 15 tests covering LIVE pulse indicators, branding header, status badges, retry button isolation, zero-state illustration, raw JSON error sanitization, mobile card layout container queries (`data-label`), and attempt lineage badges.
+- **Extended Unit Test Suites (`receiver/test/unit/`, `web/tests/unit/`)**: Comprehensive edge cases covering HMAC signatures (`hmac-extended.test.ts`), schema mathematical tolerances (`schema-extended.test.ts`), CRM client resilience and backoff (`hubspot-client-extended.test.ts`), repository atomic methods (`repositories-extended.test.ts`), currency/date formatting (`format-extended.test.ts`), and isolated component states (`StatusBadge-extended.test.tsx`, `SyncTable-extended.test.tsx`).
+
+### Fixed
+- **Fastify Server Dependency Injection for E2E Pipeline Testing (`receiver/src/server.ts`)**: Added optional `hubspotClient` and `syncService` dependency injection to `ServerOptions`, enabling isolated end-to-end integration tests to execute against ephemeral mock CRM instances without mutating global configuration.
+- **In-Memory HubSpot Mock Server Response Safety (`e2e/mocks/hubspot-mock-server.ts`)**: Consolidated JSON response transmissions into a safe `sendJson` helper verifying `!res.headersSent`, preventing `ERR_HTTP_HEADERS_SENT` double-write exceptions under rapid test runs. Added `external_order_id` filter matching.
+- **Raw JSON Error String Sanitization (`web/src/features/syncs/format.ts`)**: Enhanced `formatFailureDetail` to parse embedded JSON objects and extract human-readable `message` or `error` strings, preventing unsightly raw JSON dumps in dashboard failure columns.
+- **Sync Attempts SQL Limit Safeguards (`receiver/src/db/repositories.ts`)**: Handled edge cases where non-positive limits (`LIMIT 0`) return empty record sets safely without SQL syntax issues.
+- **Test Output Hygiene (`.gitignore`)**: Added `test-results/` and `web/test-results/` to repository `.gitignore` under testing & coverage section to ensure temporary test runner artifacts are never tracked.
+
 ## [v1.2.3] - 2026-10-05
 
 ### Fixed
